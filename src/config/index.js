@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 const config = {
-  env: process.env.NODE_ENV || 'development',
+  env: process.env.ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,
   apiVersion: process.env.API_VERSION || 'v1',
 
@@ -63,6 +63,11 @@ const config = {
     apiKey: process.env.TWILIO_API_KEY,
     apiSecret: process.env.TWILIO_API_SECRET,
   },
+
+  encryption: {
+    key: process.env.RESPONSE_ENCRYPTION_KEY || 'colabrix-default-32-char-key-12345',
+    algorithm: 'aes-256-cbc',
+  },
 };
 
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
@@ -71,5 +76,8 @@ for (const envVar of requiredEnvVars) {
     throw new Error(`Missing required environment variable: ${envVar}`);
   }
 }
+
+console.log(`Configuration loaded for environment: ${config.env}`);
+
 
 export default config;

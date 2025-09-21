@@ -1,6 +1,7 @@
 import logger from './logger.js';
 import config from '../config/index.js';
 import EApplicationEnvironment from '../constants/application.js';
+import { advancedObfuscate } from './encryption.js';
 
 export const responseMessage = {
   ERROR: {
@@ -38,6 +39,15 @@ export const httpResponse = (
   responseMessage,
   data = null
 ) => {
+  let processedData = data;
+
+  if (data && config.env === EApplicationEnvironment.PRODUCTION) {
+    processedData = {
+      secure: true,
+      payload: advancedObfuscate(data)
+    };
+  }
+
   const response = {
     success: true,
     statusCode: responseStatusCode,
@@ -47,7 +57,7 @@ export const httpResponse = (
       url: req.originalUrl,
     },
     message: responseMessage,
-    data,
+    data: processedData,
   };
 
   logger.info('CONTROLLER_RESPONSE', {
@@ -62,6 +72,16 @@ export const httpResponse = (
 };
 
 export const errorObject = (err, req, errorStatusCode = 500) => {
+  const errorData = null;
+  let trace = err instanceof Error ? { error: err.stack } : null;
+
+  if (config.env === EApplicationEnvironment.PRODUCTION && trace) {
+    trace = {
+      secure: true,
+      payload: advancedObfuscate(trace)
+    };
+  }
+
   const errorObj = {
     success: false,
     statusCode: errorStatusCode,
@@ -74,13 +94,12 @@ export const errorObject = (err, req, errorStatusCode = 500) => {
       err instanceof Error
         ? err.message || responseMessage.ERROR.SOMETHING_WENT_WRONG
         : responseMessage.ERROR.SOMETHING_WENT_WRONG,
-    data: null,
-    trace: err instanceof Error ? { error: err.stack } : null,
+    data: errorData,
+    trace,
   };
 
   if (config.env === EApplicationEnvironment.PRODUCTION) {
     delete errorObj.request.ip;
-    delete errorObj.trace;
   }
 
   return errorObj;
