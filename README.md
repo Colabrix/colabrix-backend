@@ -12,7 +12,9 @@ A powerful, open-source project management and issue tracking tool designed to s
 
 ### Prerequisites
 - Node.js (>=18.0.0)
-- Docker & Docker Compose
+- PostgreSQL (>=13)
+- Redis (>=6)
+- MongoDB (>=5)
 - Git
 
 ### Getting Started
@@ -37,13 +39,11 @@ A powerful, open-source project management and issue tracking tool designed to s
    - Copy `.env.example` to `.env`
    - Configure environment variables as needed
 
-5. **Start infrastructure**
+5. **Start databases**
    ```bash
-   # Start all databases and services
-   docker-compose up -d
-   
-   # Wait for services to be ready (30-60 seconds)
-   docker-compose ps
+   # Start PostgreSQL, Redis, and MongoDB services
+   # Make sure these services are running on your system
+   # Default ports: PostgreSQL (5432), Redis (6379), MongoDB (27017)
    ```
 
 6. **Setup database**
@@ -105,10 +105,10 @@ A powerful, open-source project management and issue tracking tool designed to s
 - **Payment Processing** - Stripe integration for payments and tutor earnings
 
 ### **Production-Ready Infrastructure**
-- **Docker Compose** - Complete development and production orchestration
-- **Load Balancing** - NGINX with upstream server configuration
+- **Database Architecture** - Multi-database setup with read/write separation
 - **Security** - Rate limiting, CORS, Helmet, input validation
 - **Code Quality** - ESLint, Prettier, and Husky git hooks
+- **Logging & Monitoring** - Comprehensive logging with Winston
 
 ## 🛠️ Tech Stack
 
@@ -144,24 +144,21 @@ A powerful, open-source project management and issue tracking tool designed to s
 - `npm run db:migrate` - Run database migrations
 - `npm run db:studio` - Open Prisma Studio
 
-## 🐳 Docker Configuration
+## 🚀 Database Setup
 
-### **Development Environment**
+### **Local Development**
 ```bash
-# Start all services
-docker-compose up -d
+# Install and start PostgreSQL
+brew install postgresql
+brew services start postgresql
 
-# View logs
-docker-compose logs -f
+# Install and start Redis
+brew install redis
+brew services start redis
 
-# Stop all services
-docker-compose down
-```
-
-### **Production Environment**
-```bash
-# Start production stack
-docker-compose -f docker-compose.production.yml up -d
+# Install and start MongoDB
+brew install mongodb-community
+brew services start mongodb-community
 ```
 
 ## Contributing
