@@ -7,11 +7,8 @@ import rateLimit from 'express-rate-limit';
 import { randomUUID } from 'crypto';
 
 import config from './config/index.js';
-import logger from './utils/logger.js';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import routes from './routes/index.js';
-import httpResponse from './utils/response.js';
-import router from './index.js';
+import { logger, errorHandler, notFoundHandler, httpResponse } from './shared/index.js';
+import router from './router/index.js';
 
 const app = express();
 

@@ -1,6 +1,6 @@
 import winston from 'winston';
 import 'winston-mongodb';
-import config from '../config/index.js';
+import config from '../../config/index.js';
 
 const levels = {
   error: 0,

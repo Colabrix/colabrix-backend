@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 import app from './app.js';
 import config from './config/index.js';
-import logger from './utils/logger.js';
+import { logger } from './shared/index.js';
 import { connectDatabases, disconnectDatabases } from './config/databases.js';
 
 const PORT = config.port || 3000;

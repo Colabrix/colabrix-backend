@@ -1,9 +1,7 @@
-import { checkDatabaseHealth } from '../config/databases.js';
-import httpResponse, { responseMessage, httpError } from '../utils/response.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
-import config from '../config/index.js';
-import SystemStatus from '../models/SystemStatus.js';
-import logger from '../utils/logger.js';
+import { checkDatabaseHealth } from '../../../config/databases.js';
+import { httpResponse, responseMessage, httpError, asyncHandler, logger } from '../../../shared/index.js';
+import config from '../../../config/index.js';
+import SystemStatus from '../../../models/SystemStatus.js';
 
 const healthCheck = asyncHandler(async (req, res) => {
   const healthData = {

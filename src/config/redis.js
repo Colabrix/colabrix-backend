@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import config from './index.js';
-import logger from '../utils/logger.js';
+import { logger } from '../shared/index.js';
 
 let redisCluster;
 let redisClient;
