@@ -11,6 +11,7 @@ import logger from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import routes from './routes/index.js';
 import httpResponse from './utils/response.js';
+import router from './index.js';
 
 const app = express();
 
@@ -115,7 +116,7 @@ app.get('/', (req, res) => {
   );
 });
 
-app.use('/v1', routes);
+app.use('/v1', router);
 
 app.use(notFoundHandler);
 
