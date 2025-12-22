@@ -9,7 +9,6 @@ import { randomUUID } from 'crypto';
 import config from './config/index.js';
 import logger from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import routes from './routes/index.js';
 import httpResponse from './utils/response.js';
 import router from './index.js';
 
@@ -59,12 +58,7 @@ if (config.env !== 'test') {
     legacyHeaders: false,
     handler: (req, res) => {
       logger.security('Rate limit exceeded', `IP: ${req.ip}`);
-      return httpResponse(
-        req,
-        res,
-        429,
-        'Too many requests from this IP, please try again later.'
-      );
+      return httpResponse(req, res, 429, 'Too many requests from this IP, please try again later.');
     },
   });
   app.use(limiter);
@@ -99,21 +93,15 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  return httpResponse(
-    req,
-    res,
-    200,
-    'Welcome to Colabrix API',
-    {
-      name: 'Colabrix API',
-      version: config.apiVersion,
-      environment: config.env,
-      timestamp: new Date().toISOString(),
-      documentation: {
-        health: '/v1/health',
-      },
-    }
-  );
+  return httpResponse(req, res, 200, 'Welcome to Colabrix API', {
+    name: 'Colabrix API',
+    version: config.apiVersion,
+    environment: config.env,
+    timestamp: new Date().toISOString(),
+    documentation: {
+      health: '/v1/health',
+    },
+  });
 });
 
 app.use('/v1', router);

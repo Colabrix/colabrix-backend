@@ -77,7 +77,7 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
+// eslint-disable-next-line no-console
 console.log(`Configuration loaded for environment: ${config.env}`);
-
 
 export default config;
