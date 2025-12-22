@@ -1,6 +1,6 @@
 import winston from 'winston';
 import 'winston-mongodb';
-import config from '../config/index.js';
+import config from '../../config/index.js';
 
 const levels = {
   error: 0,
@@ -23,9 +23,7 @@ winston.addColors(colors);
 const format = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.colorize({ all: true }),
-  winston.format.printf(
-    (info) => `${info.timestamp} ${info.level}: ${info.message}`
-  )
+  winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
 );
 
 const productionFormat = winston.format.combine(
@@ -85,8 +83,7 @@ logger.stream = {
 // Add custom methods for application-specific logging
 logger.startup = (message) => logger.info(`🚀 ${message}`);
 logger.success = (message) => logger.info(`✅ ${message}`);
-logger.security = (message, details) =>
-  logger.warn(`🔒 ${message} ${details || ''}`);
+logger.security = (message, details) => logger.warn(`🔒 ${message} ${details || ''}`);
 logger.request = (req, statusCode, duration) => {
   const level = statusCode >= 400 ? 'warn' : 'info';
   logger[level](`${req.method} ${req.url} ${statusCode} - ${duration}ms`);

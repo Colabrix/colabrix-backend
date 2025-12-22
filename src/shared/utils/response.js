@@ -1,7 +1,6 @@
 import logger from './logger.js';
-import config from '../config/index.js';
-import EApplicationEnvironment from '../constants/application.js';
-import { advancedObfuscate } from './encryption.js';
+import config from '../../config/index.js';
+import { EApplicationEnvironment } from '../constant/application.js';
 
 export const responseMessage = {
   ERROR: {
@@ -23,31 +22,18 @@ export const responseMessage = {
     DELETED: 'Resource deleted successfully',
     FETCHED: 'Resource fetched successfully',
     HEALTH_CHECK: 'Health check passed successfully',
-    READY_CHECK: 'Application is ready',
-    LIVE_CHECK: 'Application is alive',
+    READY: 'Application is ready',
+    ALIVE: 'Application is alive',
+    OK: 'OK',
   },
   DATABASE: {
     HEALTH_CHECK: 'Database health check completed',
     DETAILED_HEALTH_CHECK: 'Detailed health check completed',
   },
+  custom: (message) => message,
 };
 
-export const httpResponse = (
-  req,
-  res,
-  responseStatusCode,
-  responseMessage,
-  data = null
-) => {
-  let processedData = data;
-
-  if (data && config.env === EApplicationEnvironment.PRODUCTION) {
-    processedData = {
-      secure: true,
-      payload: advancedObfuscate(data)
-    };
-  }
-
+export const httpResponse = (req, res, responseStatusCode, responseMessage, data = null) => {
   const response = {
     success: true,
     statusCode: responseStatusCode,
@@ -57,7 +43,7 @@ export const httpResponse = (
       url: req.originalUrl,
     },
     message: responseMessage,
-    data: processedData,
+    data,
   };
 
   logger.info('CONTROLLER_RESPONSE', {
@@ -73,14 +59,7 @@ export const httpResponse = (
 
 export const errorObject = (err, req, errorStatusCode = 500) => {
   const errorData = null;
-  let trace = err instanceof Error ? { error: err.stack } : null;
-
-  if (config.env === EApplicationEnvironment.PRODUCTION && trace) {
-    trace = {
-      secure: true,
-      payload: advancedObfuscate(trace)
-    };
-  }
+  const trace = err instanceof Error ? { error: err.stack } : null;
 
   const errorObj = {
     success: false,

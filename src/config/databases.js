@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import mongoose from 'mongoose';
 import Redis from 'ioredis';
 import config from './index.js';
-import logger from '../utils/logger.js';
+import { logger } from '../shared/index.js';
 
 let prisma;
 let readPrisma;
@@ -16,10 +16,7 @@ function initializePrisma() {
           url: config.database.url,
         },
       },
-      log:
-        config.env === 'development'
-          ? ['query', 'info', 'warn', 'error']
-          : ['error'],
+      log: config.env === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
     });
   }
 
@@ -30,10 +27,7 @@ function initializePrisma() {
           url: config.database.readUrl,
         },
       },
-      log:
-        config.env === 'development'
-          ? ['query', 'info', 'warn', 'error']
-          : ['error'],
+      log: config.env === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
     });
   }
 

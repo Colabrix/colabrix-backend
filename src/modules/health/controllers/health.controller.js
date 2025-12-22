@@ -1,9 +1,13 @@
-import { checkDatabaseHealth } from '../config/databases.js';
-import httpResponse, { responseMessage, httpError } from '../utils/response.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
-import config from '../config/index.js';
-import SystemStatus from '../models/SystemStatus.js';
-import logger from '../utils/logger.js';
+import { checkDatabaseHealth } from '../../../config/databases.js';
+import {
+  httpResponse,
+  responseMessage,
+  httpError,
+  asyncHandler,
+  logger,
+} from '../../../shared/index.js';
+import config from '../../../config/index.js';
+import SystemStatus from '../../../models/SystemStatus.js';
 
 const healthCheck = asyncHandler(async (req, res) => {
   const healthData = {
@@ -22,13 +26,7 @@ const healthCheck = asyncHandler(async (req, res) => {
     },
   };
 
-  return httpResponse(
-    req,
-    res,
-    200,
-    responseMessage.SUCCESS.HEALTH_CHECK,
-    healthData
-  );
+  return httpResponse(req, res, 200, responseMessage.SUCCESS.HEALTH_CHECK, healthData);
 });
 
 const detailedHealthCheck = asyncHandler(async (req, res) => {
@@ -63,13 +61,7 @@ const detailedHealthCheck = asyncHandler(async (req, res) => {
     return httpError(req, res, new Error('Service is degraded'), 503);
   }
 
-  return httpResponse(
-    req,
-    res,
-    200,
-    responseMessage.SUCCESS.HEALTH_CHECK,
-    healthData
-  );
+  return httpResponse(req, res, 200, responseMessage.SUCCESS.HEALTH_CHECK, healthData);
 });
 
 const readyCheck = asyncHandler(async (req, res) => {
@@ -98,13 +90,7 @@ const liveCheck = asyncHandler(async (req, res) => {
 const databaseHealthCheck = asyncHandler(async (req, res) => {
   const dbHealth = await checkDatabaseHealth();
 
-  return httpResponse(
-    req,
-    res,
-    200,
-    'Database health check completed',
-    dbHealth
-  );
+  return httpResponse(req, res, 200, 'Database health check completed', dbHealth);
 });
 
 const fullSystemStatus = asyncHandler(async (req, res) => {
@@ -170,20 +156,9 @@ const fullSystemStatus = asyncHandler(async (req, res) => {
       });
     }
 
-    const statusCode
-      = systemStatus === 'healthy'
-        ? 200
-        : systemStatus === 'degraded'
-          ? 202
-          : 503;
+    const statusCode = systemStatus === 'healthy' ? 200 : systemStatus === 'degraded' ? 202 : 503;
 
-    return httpResponse(
-      req,
-      res,
-      statusCode,
-      `System status: ${systemStatus}`,
-      statusData
-    );
+    return httpResponse(req, res, statusCode, `System status: ${systemStatus}`, statusData);
   } catch (error) {
     logger.error('Error in fullSystemStatus', {
       error: error.message,
@@ -191,12 +166,7 @@ const fullSystemStatus = asyncHandler(async (req, res) => {
       requestId: req.requestId,
     });
 
-    return httpError(
-      req,
-      res,
-      new Error('Failed to retrieve system status'),
-      500
-    );
+    return httpError(req, res, new Error('Failed to retrieve system status'), 500);
   }
 });
 
@@ -220,21 +190,15 @@ const getSystemStatus = asyncHandler(async (req, res) => {
 
     const total = await SystemStatus.countDocuments(filter);
 
-    return httpResponse(
-      req,
-      res,
-      200,
-      'System status records retrieved successfully',
-      {
-        records: statusRecords,
-        pagination: {
-          currentPage: parseInt(page, 10),
-          totalPages: Math.ceil(total / limit),
-          totalRecords: total,
-          limit: parseInt(limit, 10),
-        },
-      }
-    );
+    return httpResponse(req, res, 200, 'System status records retrieved successfully', {
+      records: statusRecords,
+      pagination: {
+        currentPage: parseInt(page, 10),
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        limit: parseInt(limit, 10),
+      },
+    });
   } catch (error) {
     logger.error('Error retrieving system status records', {
       error: error.message,
@@ -242,12 +206,7 @@ const getSystemStatus = asyncHandler(async (req, res) => {
       requestId: req.requestId,
     });
 
-    return httpError(
-      req,
-      res,
-      new Error('Failed to retrieve system status records'),
-      500
-    );
+    return httpError(req, res, new Error('Failed to retrieve system status records'), 500);
   }
 });
 

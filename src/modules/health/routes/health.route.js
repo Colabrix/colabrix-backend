@@ -7,7 +7,7 @@ import {
   databaseHealthCheck,
   fullSystemStatus,
   getSystemStatus,
-} from '../controllers/healthController.js';
+} from '../controllers/health.controller.js';
 
 const router = express.Router();
 
