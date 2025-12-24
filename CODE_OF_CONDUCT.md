@@ -33,6 +33,7 @@ This repository contains proprietary and confidential information belonging to C
 ### ⚖️ Legal Consequences
 
 Violation of this code of conduct may result in:
+
 - Immediate termination of access
 - Legal action for breach of confidentiality
 - Financial penalties as outlined in employment/contractor agreements
@@ -41,6 +42,7 @@ Violation of this code of conduct may result in:
 ### 📞 Reporting Violations
 
 Report any suspected violations immediately to:
+
 - Email: info@colabrix.com
 - Legal Team: legal@colabrix.com
 
