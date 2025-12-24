@@ -5,12 +5,13 @@ A powerful, open-source project management and issue tracking tool designed to s
 ## Branch Strategy
 
 - **main** - Production branch (protected)
-- **dev** - Development branch where all developers work  
+- **dev** - Development branch where all developers work
 - **staging** - Pre-production/QA branch for testing before production
 
 ## Setup Process
 
 ### Prerequisites
+
 - Node.js (>=18.0.0)
 - PostgreSQL (>=13)
 - Redis (>=6)
@@ -20,17 +21,20 @@ A powerful, open-source project management and issue tracking tool designed to s
 ### Getting Started
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/Colabrix/colabrix-backend.git
    cd colabrix-backend
    ```
 
 2. **Switch to development branch**
+
    ```bash
    git checkout dev
    ```
 
 3. **Install dependencies**
+
    ```bash
    npm install
    ```
@@ -40,6 +44,7 @@ A powerful, open-source project management and issue tracking tool designed to s
    - Configure environment variables as needed
 
 5. **Start databases**
+
    ```bash
    # Start PostgreSQL, Redis, and MongoDB services
    # Make sure these services are running on your system
@@ -47,16 +52,18 @@ A powerful, open-source project management and issue tracking tool designed to s
    ```
 
 6. **Setup database**
+
    ```bash
    # Generate Prisma client
    npm run db:generate
-   
+
    # Run database migrations
    npm run db:migrate
-   
+
    ```
 
 7. **Start development server**
+
    ```bash
    npm run dev
    ```
@@ -69,16 +76,19 @@ A powerful, open-source project management and issue tracking tool designed to s
 ## Development Workflow
 
 ### Sprint-based Development
+
 - All feature development happens on the `dev` branch
 - Create feature branches from `dev` for individual tasks
 - Submit pull requests to merge back into `dev`
 
 ### Branch Flow
+
 1. **Feature Development**: `dev` → `feature/task-name` → `dev`
 2. **QA Testing**: `dev` → `staging` (for pre-production testing)
 3. **Production**: `staging` → `main` (after QA approval)
 
 ### Sprint Process
+
 1. Start sprint by pulling latest `dev` branch
 2. Create feature branches from `dev`
 3. Develop and test features locally
@@ -89,6 +99,7 @@ A powerful, open-source project management and issue tracking tool designed to s
 ## 🚀 Features
 
 ### **Multi-Database Architecture**
+
 - **PostgreSQL with Prisma** - Primary database with master-slave replication
 - **Redis Cluster** - Session management, caching, and real-time features
 - **MongoDB** - Chat messages and user-generated content
@@ -96,6 +107,7 @@ A powerful, open-source project management and issue tracking tool designed to s
 - **ClickHouse** - Analytics and learning progress tracking
 
 ### **Core Platform Features**
+
 - **User Management** - Students, Tutors, Parents, and Admins with role-based access
 - **Authentication** - JWT-based auth with refresh tokens and email verification
 - **Course Management** - Create, manage, and enroll in courses
@@ -105,6 +117,7 @@ A powerful, open-source project management and issue tracking tool designed to s
 - **Payment Processing** - Stripe integration for payments and tutor earnings
 
 ### **Production-Ready Infrastructure**
+
 - **Database Architecture** - Multi-database setup with read/write separation
 - **Security** - Rate limiting, CORS, Helmet, input validation
 - **Code Quality** - ESLint, Prettier, and Husky git hooks
@@ -113,11 +126,13 @@ A powerful, open-source project management and issue tracking tool designed to s
 ## 🛠️ Tech Stack
 
 ### **Backend Framework**
+
 - **Node.js** (>=18.0.0)
 - **Express.js** - Web application framework
 - **Prisma** - Database ORM with type safety
 
 ### **Databases**
+
 - **PostgreSQL 15** - Primary relational database
 - **Redis 7** - Caching and session management
 - **MongoDB 7** - Document storage
@@ -125,6 +140,7 @@ A powerful, open-source project management and issue tracking tool designed to s
 - **ClickHouse 23** - Analytics database
 
 ### **Security & Authentication**
+
 - **JWT** - JSON Web Tokens for authentication
 - **bcryptjs** - Password hashing
 - **Helmet** - Security headers
@@ -147,6 +163,7 @@ A powerful, open-source project management and issue tracking tool designed to s
 ## 🚀 Database Setup
 
 ### **Local Development**
+
 ```bash
 # Install and start PostgreSQL
 brew install postgresql
@@ -173,6 +190,7 @@ brew services start mongodb-community
 ## Environment Variables
 
 Reference `.env.example` for required environment variables:
+
 - Database connection strings
 - JWT secrets
 - API keys for external services

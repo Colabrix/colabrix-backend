@@ -2,13 +2,7 @@ import js from '@eslint/js';
 
 export default [
   {
-    ignores: [
-      'node_modules/**',
-      'build/**',
-      'dist/**',
-      'coverage/**',
-      '.next/**',
-    ],
+    ignores: ['node_modules/**', 'build/**', 'dist/**', 'coverage/**', '.next/**'],
   },
   {
     files: ['**/*.js', '**/*.mjs'],
@@ -69,10 +63,7 @@ export default [
       'spaced-comment': ['error', 'always'],
       'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 1 }],
       'padded-blocks': ['error', 'never'],
-      'max-len': [
-        'error',
-        { code: 100, ignoreUrls: true, ignoreStrings: true },
-      ],
+      'max-len': ['error', { code: 100, ignoreUrls: true, ignoreStrings: true }],
       camelcase: ['error', { properties: 'never' }],
       'new-cap': ['error', { newIsCap: true, capIsNew: false }],
       'no-mixed-operators': 'error',
