@@ -24,6 +24,8 @@ model User {
   passwordResets    PasswordResetToken[]
   refreshTokens     RefreshToken[]
 
+  @@index([createdAt])
+  @@index([isEmailVerified])
   @@map("users")
 }
 
@@ -37,6 +39,8 @@ model Organization {
   members     OrganizationMember[]
   invites     OrganizationInvite[]
 
+  @@index([name])
+  @@index([createdAt])
   @@map("organizations")
 }
 
@@ -51,6 +55,10 @@ model OrganizationMember {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([role])
+  @@index([joinedAt])
   @@map("organization_members")
 }
 
@@ -66,6 +74,11 @@ model OrganizationInvite {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
+  @@index([email])
+  @@index([expiresAt])
+  @@index([isUsed])
+  @@index([organizationId, isUsed, expiresAt])
   @@map("organization_invites")
 }
 
@@ -80,6 +93,10 @@ model EmailVerificationToken {
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isUsed])
+  @@index([userId, isUsed, expiresAt])
   @@map("email_verification_tokens")
 }
 
@@ -94,6 +111,10 @@ model PasswordResetToken {
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isUsed])
+  @@index([userId, isUsed, expiresAt])
   @@map("password_reset_tokens")
 }
 
@@ -106,6 +127,9 @@ model RefreshToken {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -117,5 +141,7 @@ model HealthCheck {
   memory    Json?
   version   String?
 
+  @@index([timestamp])
+  @@index([status])
   @@map("health_checks")
 }
