@@ -6,7 +6,15 @@ export const register = asyncHandler(async (req, res) => {
 
   const user = await authService.registerUser({ email, phone, password });
 
-  return httpResponse(req, res, 201, responseMessage.custom('Registration successful. Please check your email to verify your account'), user);
+  return httpResponse(
+    req,
+    res,
+    201,
+    responseMessage.custom(
+      'Registration successful. Please check your email to verify your account'
+    ),
+    user
+  );
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
@@ -34,7 +42,13 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
   await authService.requestPasswordReset(email);
 
-  return httpResponse(req, res, 200, responseMessage.custom('If the email exists, a password reset link has been sent'), null);
+  return httpResponse(
+    req,
+    res,
+    200,
+    responseMessage.custom('If the email exists, a password reset link has been sent'),
+    null
+  );
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
@@ -75,5 +89,11 @@ export const getMe = asyncHandler(async (req, res) => {
 
   const user = await authService.getUserProfile(userId);
 
-  return httpResponse(req, res, 200, responseMessage.custom('User profile retrieved successfully'), user);
+  return httpResponse(
+    req,
+    res,
+    200,
+    responseMessage.custom('User profile retrieved successfully'),
+    user
+  );
 });

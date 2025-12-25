@@ -1,7 +1,24 @@
 import express from 'express';
-import { register, verifyEmail, login, forgotPassword, resetPassword, changePassword, logout, logoutAllDevices, getMe } from '../controllers/auth.controller.js';
+import {
+  register,
+  verifyEmail,
+  login,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  logout,
+  logoutAllDevices,
+  getMe,
+} from '../controllers/auth.controller.js';
 import { authenticate, validateRequest } from '../../../shared/index.js';
-import { registerSchema, verifyEmailSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from '../validations/auth.schema.js';
+import {
+  registerSchema,
+  verifyEmailSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  changePasswordSchema,
+} from '../validations/auth.schema.js';
 
 const router = express.Router();
 

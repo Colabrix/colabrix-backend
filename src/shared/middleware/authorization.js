@@ -48,7 +48,12 @@ export const requireOwnership = (getResourceOwnerId) => {
 
     if (req.user.id !== resourceOwnerId) {
       if (req.user.role !== 'MANAGER') {
-        return httpError(req, res, new Error('You do not have permission to access this resource'), 403);
+        return httpError(
+          req,
+          res,
+          new Error('You do not have permission to access this resource'),
+          403
+        );
       }
     }
 
@@ -113,7 +118,7 @@ export const requireTaskAccess = (prisma) => {
 
     const isCreator = task.createdById === req.user.id;
     const isAssignee = task.assignedToId === req.user.id;
-    const isProjectMember = task.project.members.some(m => m.userId === req.user.id);
+    const isProjectMember = task.project.members.some((m) => m.userId === req.user.id);
     const isManager = req.user.role === 'MANAGER';
 
     if (!isCreator && !isAssignee && !isProjectMember && !isManager) {

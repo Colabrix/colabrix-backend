@@ -43,7 +43,7 @@ export const registerUser = async ({ email, phone, password }) => {
     data: {
       userId: user.id,
       token: verificationToken,
-      expiresAt: new Date(Date.now() + (24 * 60 * 60 * 1000)),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },
   });
 
@@ -120,11 +120,15 @@ export const loginUser = async ({ email, password }) => {
     throw new Error('Please verify your email before logging in');
   }
 
-  const sessionId = await sessionManager.createSession(user.id, {
-    email: user.email,
-    phone: user.phone,
-    isEmailVerified: user.isEmailVerified,
-  }, 7 * 24 * 60 * 60);
+  const sessionId = await sessionManager.createSession(
+    user.id,
+    {
+      email: user.email,
+      phone: user.phone,
+      isEmailVerified: user.isEmailVerified,
+    },
+    7 * 24 * 60 * 60
+  );
 
   const { accessToken, refreshToken } = generateTokens({
     userId: user.id,
@@ -136,7 +140,7 @@ export const loginUser = async ({ email, password }) => {
     data: {
       userId: user.id,
       token: refreshToken,
-      expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
 
@@ -170,7 +174,7 @@ export const requestPasswordReset = async (email) => {
     data: {
       userId: user.id,
       token: resetToken,
-      expiresAt: new Date(Date.now() + (60 * 60 * 1000)),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     },
   });
 
