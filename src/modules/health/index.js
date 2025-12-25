@@ -1,3 +1,2 @@
-import router from './routes';
-
-export default router;
+export * from './controllers/health.controller.js';
+export { default as healthRoutes } from './routes/health.route.js';

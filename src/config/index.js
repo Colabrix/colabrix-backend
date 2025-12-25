@@ -4,6 +4,7 @@ const config = {
   env: process.env.ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,
   apiVersion: process.env.API_VERSION || 'v1',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
 
   database: {
     url: process.env.DATABASE_URL,
@@ -48,6 +49,11 @@ const config = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_REGION || 'us-east-1',
     s3Bucket: process.env.AWS_S3_BUCKET,
+  },
+
+  resend: {
+    apiKey: process.env.RESEND_API_KEY,
+    fromEmail: process.env.RESEND_FROM_EMAIL || 'noreply@colabrix.app',
   },
 
   smtp: {
