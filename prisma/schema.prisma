@@ -7,57 +7,182 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  phone             String?   @unique
-  password          String
-  isEmailVerified   Boolean   @default(false)
-  isPhoneVerified   Boolean   @default(false)
-  emailVerifiedAt   DateTime?
-  phoneVerifiedAt   DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+enum SystemRole {
+  SUPER_ADMIN
+  USER
+}
 
-  organizations     OrganizationMember[]
-  emailTokens       EmailVerificationToken[]
-  passwordResets    PasswordResetToken[]
-  refreshTokens     RefreshToken[]
+enum PlanType {
+  FREE
+  STANDARD
+  PREMIUM
+  ENTERPRISE
+}
+
+model User {
+  id                 String      @id @default(cuid())
+  email              String      @unique
+  phone              String?     @unique
+  password           String
+  systemRole         SystemRole  @default(USER)
+  isEmailVerified    Boolean     @default(false)
+  isPhoneVerified    Boolean     @default(false)
+  emailVerifiedAt    DateTime?
+  phoneVerifiedAt    DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  ownedOrganizations Organization[]                @relation("OrgOwner")
+  organizations      OrganizationMember[]
+  emailTokens        EmailVerificationToken[]
+  passwordResets     PasswordResetToken[]
+  refreshTokens      RefreshToken[]
 
   @@index([createdAt])
   @@index([isEmailVerified])
+  @@index([systemRole])
   @@map("users")
 }
 
-model Organization {
-  id          String   @id @default(cuid())
-  name        String
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Plan {
+  id            String         @id @default(cuid())
+  name          String
+  type          PlanType       @unique
+  price         Float
+  interval      String
+  description   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  members     OrganizationMember[]
-  invites     OrganizationInvite[]
+  features      PlanFeature[]
+  organizations Organization[]
+
+  @@index([type])
+  @@map("plans")
+}
+
+model Feature {
+  id          String        @id @default(cuid())
+  key         String        @unique
+  name        String
+  description String?
+  category    String
+  createdAt   DateTime      @default(now())
+
+  plans PlanFeature[]
+
+  @@index([category])
+  @@index([key])
+  @@map("features")
+}
+
+model PlanFeature {
+  id        String  @id @default(cuid())
+  planId    String
+  featureId String
+  isEnabled Boolean @default(true)
+  limit     Int?
+  metadata  Json?
+
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureId])
+  @@index([planId])
+  @@index([featureId])
+  @@index([planId, isEnabled])
+  @@map("plan_features")
+}
+
+model Organization {
+  id             String    @id @default(cuid())
+  name           String
+  imageUrl       String?
+  ownerId        String
+  planId         String
+  subscriptionId String?
+  trialEndsAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  owner   User                 @relation("OrgOwner", fields: [ownerId], references: [id])
+  plan    Plan                 @relation(fields: [planId], references: [id])
+  members OrganizationMember[]
+  roles   Role[]
+  invites OrganizationInvite[]
+  usage   FeatureUsage[]
 
   @@index([name])
   @@index([createdAt])
+  @@index([ownerId])
+  @@index([planId])
   @@map("organizations")
+}
+
+model Role {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  isSystemRole   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  RolePermission[]
+  members      OrganizationMember[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([isSystemRole])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  resource    String
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@index([resource])
+  @@index([action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
 }
 
 model OrganizationMember {
   id             String   @id @default(cuid())
   userId         String
   organizationId String
-  role           String   @default("member")
+  roleId         String
   joinedAt       DateTime @default(now())
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
 
   @@unique([userId, organizationId])
   @@index([userId])
   @@index([organizationId])
-  @@index([role])
+  @@index([roleId])
+  @@index([userId, organizationId])
   @@index([joinedAt])
   @@map("organization_members")
 }
@@ -66,13 +191,14 @@ model OrganizationInvite {
   id             String    @id @default(cuid())
   organizationId String
   email          String?
+  roleId         String?
   token          String    @unique
   expiresAt      DateTime
   isUsed         Boolean   @default(false)
   usedAt         DateTime?
   createdAt      DateTime  @default(now())
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([email])
@@ -80,6 +206,23 @@ model OrganizationInvite {
   @@index([isUsed])
   @@index([organizationId, isUsed, expiresAt])
   @@map("organization_invites")
+}
+
+model FeatureUsage {
+  id             String   @id @default(cuid())
+  organizationId String
+  featureKey     String
+  usedCount      Int      @default(0)
+  periodStart    DateTime @default(now())
+  periodEnd      DateTime
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, featureKey, periodStart])
+  @@index([organizationId])
+  @@index([featureKey])
+  @@index([periodStart])
+  @@map("feature_usage")
 }
 
 model EmailVerificationToken {
@@ -91,7 +234,7 @@ model EmailVerificationToken {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -109,7 +252,7 @@ model PasswordResetToken {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -125,7 +268,7 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])

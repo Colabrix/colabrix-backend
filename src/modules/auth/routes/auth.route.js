@@ -9,6 +9,7 @@ import {
   logout,
   logoutAllDevices,
   getMe,
+  health,
 } from '../controllers/auth.controller.js';
 import { authenticate, validateRequest } from '../../../shared/index.js';
 import {
@@ -21,6 +22,8 @@ import {
 } from '../validations/auth.schema.js';
 
 const router = express.Router();
+
+router.get('/health', health);
 
 router.post('/register', validateRequest(registerSchema, 'body'), register);
 router.post('/verify-email', validateRequest(verifyEmailSchema, 'body'), verifyEmail);

@@ -120,12 +120,44 @@ export const loginUser = async ({ email, password }) => {
     throw new Error('Please verify your email before logging in');
   }
 
+  const userOrgs = await prisma.organizationMember.findMany({
+    where: { userId: user.id },
+    include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const orgs = userOrgs.map((om) => ({
+    orgId: om.organization.id,
+    orgName: om.organization.name,
+    roleId: om.role.id,
+    roleName: om.role.name,
+    permissions: om.role.permissions.map(
+      (rp) => `${rp.permission.resource}:${rp.permission.action}`
+    ),
+  }));
+
   const sessionId = await sessionManager.createSession(
     user.id,
     {
       email: user.email,
       phone: user.phone,
       isEmailVerified: user.isEmailVerified,
+      systemRole: user.systemRole,
     },
     7 * 24 * 60 * 60
   );
@@ -134,6 +166,8 @@ export const loginUser = async ({ email, password }) => {
     userId: user.id,
     email: user.email,
     sessionId,
+    systemRole: user.systemRole,
+    orgs,
   });
 
   await prisma.refreshToken.create({
@@ -152,6 +186,7 @@ export const loginUser = async ({ email, password }) => {
       email: user.email,
       phone: user.phone,
       isEmailVerified: user.isEmailVerified,
+      systemRole: user.systemRole,
     },
     accessToken,
     refreshToken,
