@@ -157,4 +157,3 @@ export const getPermissions = asyncHandler(async (req, res) => {
 
   return httpResponse(req, res, 200, responseMessage.SUCCESS.OK, permissions);
 });
-
