@@ -106,6 +106,19 @@
       "name": "Auth",
       "item": [
         {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "health"]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Register",
           "event": [
             {
@@ -355,6 +368,213 @@
               "raw": "{{baseUrl}}/auth/logout-all",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "logout-all"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Organization",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Organization",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Organization\",\n  \"planType\": \"FREE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/organizations",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organization",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/:organizationId",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations", ":organizationId"],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Permissions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/permissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations", "permissions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Roles",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/:organizationId/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations", ":organizationId", "roles"],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Custom Role\",\n  \"description\": \"A custom role\",\n  \"permissionIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/organizations/:organizationId/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations", ":organizationId", "roles"],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Member",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"\",\n  \"roleId\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/organizations/:organizationId/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["organizations", ":organizationId", "members"],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": ""
+                }
+              ]
             }
           },
           "response": []

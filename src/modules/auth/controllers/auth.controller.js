@@ -1,6 +1,15 @@
 import { httpResponse, asyncHandler, responseMessage } from '../../../shared/index.js';
 import * as authService from '../services/auth.service.js';
 
+export const health = asyncHandler(async (req, res) => {
+  return httpResponse(req, res, 200, responseMessage.custom('Auth module is healthy'), {
+    module: 'auth',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || '1.0.0',
+  });
+});
+
 export const register = asyncHandler(async (req, res) => {
   const { email, phone, password } = req.body;
 
