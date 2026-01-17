@@ -1,9 +1,9 @@
-import { getPrisma } from '../../../config/databases.js';
+import { getWriteDB } from '../../../config/databases.js';
 import logger from '../../../shared/utils/logger.js';
 import { invalidateUserPermissionCache } from '../../../shared/services/rbac/permission.service.js';
 import { invalidateOrganizationFeatureCache } from '../../../shared/services/rbac/feature.service.js';
 
-const prisma = getPrisma();
+const prisma = getWriteDB();
 
 export const createOrganization = async ({ userId, name, planType = 'FREE' }) => {
   const plan = await prisma.plan.findUnique({

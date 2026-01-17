@@ -1,0 +1,356 @@
+openapi: 3.0.0
+info:
+  title: Colabrix Health API
+  version: 1.0.0
+  description: |
+    Health check and monitoring endpoints for the Colabrix platform.
+
+    **Features:**
+    - Basic health check for load balancers
+    - Detailed health with database status
+    - Kubernetes readiness and liveness probes
+    - Database connectivity monitoring
+    - Full system status with all services
+
+  contact:
+    name: Colabrix Support
+    email: support@colabrix.com
+
+servers:
+  - url: http://localhost:5000/v1
+    description: Local development server
+  - url: https://staging-api.colabrix.com/v1
+    description: Staging server
+  - url: https://api.colabrix.com/v1
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check and monitoring endpoints
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Server is healthy"
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [healthy, degraded, unhealthy]
+              example: "healthy"
+            timestamp:
+              type: string
+              format: date-time
+              example: "2024-01-15T10:30:00Z"
+
+    DetailedHealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "All systems operational"
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: "healthy"
+            uptime:
+              type: number
+              description: Server uptime in seconds
+              example: 123456.789
+            timestamp:
+              type: string
+              format: date-time
+            services:
+              type: object
+              properties:
+                postgres:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: "connected"
+                    latency:
+                      type: string
+                      example: "2ms"
+                mongodb:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: "connected"
+                    latency:
+                      type: string
+                      example: "3ms"
+                redis:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: "connected"
+                    latency:
+                      type: string
+                      example: "1ms"
+
+    SystemStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            environment:
+              type: string
+              example: "development"
+            version:
+              type: string
+              example: "1.0.0"
+            node:
+              type: string
+              example: "v20.10.0"
+            memory:
+              type: object
+              properties:
+                used:
+                  type: string
+                  example: "128MB"
+                total:
+                  type: string
+                  example: "512MB"
+                percentage:
+                  type: string
+                  example: "25%"
+            cpu:
+              type: object
+              properties:
+                cores:
+                  type: integer
+                  example: 4
+                usage:
+                  type: string
+                  example: "15%"
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Basic health check
+      description: |
+        Returns basic API health status.
+
+        **Use cases:**
+        - Load balancer health checks
+        - Simple uptime monitoring
+        - Quick API availability check
+
+        This endpoint always returns 200 if the server is running.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy and accepting requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                success: true
+                message: "Server is healthy"
+                data:
+                  status: "healthy"
+                  timestamp: "2024-01-15T10:30:00Z"
+
+  /health/detailed:
+    get:
+      tags:
+        - Health
+      summary: Detailed health check
+      description: |
+        Returns detailed health information including database connection status.
+
+        **Checks performed:**
+        - PostgreSQL connection and latency
+        - MongoDB connection and latency
+        - Redis connection and latency
+        - Server uptime
+
+        **Response status:**
+        - `healthy`: All services operational
+        - `degraded`: Some services experiencing issues
+        - `unhealthy`: Critical services down
+      operationId: detailedHealthCheck
+      responses:
+        '200':
+          description: Detailed health status with all service checks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+              example:
+                success: true
+                message: "All systems operational"
+                data:
+                  status: "healthy"
+                  uptime: 123456.789
+                  timestamp: "2024-01-15T10:30:00Z"
+                  services:
+                    postgres:
+                      status: "connected"
+                      latency: "2ms"
+                    mongodb:
+                      status: "connected"
+                      latency: "3ms"
+                    redis:
+                      status: "connected"
+                      latency: "1ms"
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: Kubernetes readiness probe
+      description: |
+        Readiness probe endpoint for Kubernetes deployments.
+
+        **Purpose:**
+        Indicates whether the application is ready to receive traffic.
+
+        **Kubernetes behavior:**
+        - Returns 200: Pod receives traffic
+        - Returns 503: Pod removed from service endpoints
+
+        **Checks performed:**
+        - Database connections established
+        - Required services initialized
+      operationId: readyCheck
+      responses:
+        '200':
+          description: Service is ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                success: false
+                message: "Service not ready"
+                data:
+                  status: "unhealthy"
+                  reason: "Database connection pending"
+
+  /health/live:
+    get:
+      tags:
+        - Health
+      summary: Kubernetes liveness probe
+      description: |
+        Liveness probe endpoint for Kubernetes deployments.
+
+        **Purpose:**
+        Indicates whether the application is running and not deadlocked.
+
+        **Kubernetes behavior:**
+        - Returns 200: Pod is alive
+        - Returns 503: Pod will be restarted
+
+        This is a lightweight check that only verifies the process is responsive.
+      operationId: liveCheck
+      responses:
+        '200':
+          description: Service is alive and responsive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/database:
+    get:
+      tags:
+        - Health
+      summary: Database health check
+      description: |
+        Check database connection status and latency.
+
+        **Databases checked:**
+        - PostgreSQL (primary data store)
+        - MongoDB (document store)
+        - Redis (cache and sessions)
+
+        **Metrics returned:**
+        - Connection status
+        - Query latency
+        - Pool statistics
+      operationId: databaseHealthCheck
+      responses:
+        '200':
+          description: Database connections are healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+
+  /health/system:
+    get:
+      tags:
+        - Health
+      summary: Full system status
+      description: |
+        Returns comprehensive system health including all services and metrics.
+
+        **Information provided:**
+        - Server environment and version
+        - Node.js version
+        - Memory usage (used, total, percentage)
+        - CPU information
+        - All database statuses
+        - Uptime statistics
+
+        Useful for monitoring dashboards and system administrators.
+      operationId: fullSystemStatus
+      responses:
+        '200':
+          description: Complete system status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatusResponse'
+
+  /health/status:
+    get:
+      tags:
+        - Health
+      summary: Get system status
+      description: |
+        Returns current system status and key metrics.
+
+        Similar to `/health/system` but with a simplified response format.
+        Suitable for status page integrations.
+      operationId: getSystemStatus
+      responses:
+        '200':
+          description: System status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'

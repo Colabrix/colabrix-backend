@@ -36,6 +36,11 @@ const config = {
     origins: process.env.CORS_ORIGIN?.split(',') || ['*'],
   },
 
+  swagger: {
+    username: process.env.SWAGGER_USERNAME || 'admin',
+    password: process.env.SWAGGER_PASSWORD || 'admin',
+  },
+
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
