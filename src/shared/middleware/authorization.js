@@ -1,131 +1,122 @@
-import { httpError, responseMessage } from '../utils/response.js';
+import { hasPermission } from '../services/rbac/permission.service.js';
+import {
+  hasFeature,
+  getFeatureLimit,
+  getFeatureUsage,
+  trackFeatureUsage as trackUsage,
+} from '../services/rbac/feature.service.js';
+import { httpError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
-export const requireRole = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return httpError(req, res, new Error(responseMessage.ERROR.UNAUTHORIZED), 401);
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return httpError(req, res, new Error(responseMessage.ERROR.FORBIDDEN), 403);
-    }
-
-    return next();
-  };
-};
-
-export const requireManager = (req, res, next) => {
-  if (!req.user) {
-    return httpError(req, res, new Error(responseMessage.ERROR.UNAUTHORIZED), 401);
-  }
-
-  if (req.user.role !== 'MANAGER') {
-    return httpError(req, res, new Error('Manager access required'), 403);
-  }
-
-  return next();
-};
-
-export const requireEmployee = (req, res, next) => {
-  if (!req.user) {
-    return httpError(req, res, new Error(responseMessage.ERROR.UNAUTHORIZED), 401);
-  }
-
-  if (req.user.role !== 'EMPLOYEE') {
-    return httpError(req, res, new Error('Employee access required'), 403);
-  }
-
-  return next();
-};
-
-export const requireOwnership = (getResourceOwnerId) => {
+export const requirePermission = (resource, action) => {
   return async (req, res, next) => {
-    if (!req.user) {
-      return httpError(req, res, new Error(responseMessage.ERROR.UNAUTHORIZED), 401);
-    }
+    try {
+      const userId = req.user.id;
+      const organizationId = req.params.organizationId || req.body.organizationId;
 
-    const resourceOwnerId = await getResourceOwnerId(req);
+      if (!organizationId) {
+        return httpError(req, res, new Error('Organization ID required'), 400);
+      }
 
-    if (req.user.id !== resourceOwnerId) {
-      if (req.user.role !== 'MANAGER') {
+      if (req.user.orgs) {
+        const org = req.user.orgs.find((o) => o.orgId === organizationId);
+        if (org && org.permissions.includes(`${resource}:${action}`)) {
+          req.organization = { id: organizationId, role: org.roleName };
+          return next();
+        }
+      }
+
+      const allowed = await hasPermission(userId, organizationId, resource, action);
+
+      if (!allowed) {
+        logger.warn('Permission denied', {
+          userId,
+          organizationId,
+          resource,
+          action,
+        });
         return httpError(
           req,
           res,
-          new Error('You do not have permission to access this resource'),
+          new Error('You do not have permission to perform this action'),
           403
         );
       }
-    }
 
-    return next();
+      req.organization = { id: organizationId };
+      return next();
+    } catch (error) {
+      logger.error('Authorization error:', error);
+      return httpError(req, res, error, 500);
+    }
   };
 };
 
-export const requireProjectMember = (prisma) => {
+export const requireFeature = (featureKey) => {
   return async (req, res, next) => {
+    try {
+      const organizationId = req.params.organizationId || req.body.organizationId;
+
+      if (!organizationId) {
+        return httpError(req, res, new Error('Organization ID required'), 400);
+      }
+
+      const allowed = await hasFeature(organizationId, featureKey);
+
+      if (!allowed) {
+        return httpError(
+          req,
+          res,
+          new Error(`Feature "${featureKey}" not available in your plan`),
+          403
+        );
+      }
+
+      const limit = await getFeatureLimit(organizationId, featureKey);
+
+      if (limit !== null) {
+        const usedCount = await getFeatureUsage(organizationId, featureKey);
+
+        if (usedCount >= limit) {
+          return httpError(
+            req,
+            res,
+            new Error(`Feature limit exceeded. Used ${usedCount}/${limit} this month.`),
+            429
+          );
+        }
+
+        req.featureUsage = {
+          used: usedCount,
+          limit,
+          remaining: limit - usedCount,
+        };
+      }
+
+      return next();
+    } catch (error) {
+      logger.error('Feature check error:', error);
+      return httpError(req, res, error, 500);
+    }
+  };
+};
+
+export const trackFeatureUsage = async (organizationId, featureKey, count = 1) => {
+  return trackUsage(organizationId, featureKey, count);
+};
+
+export const requireSystemRole = (...roles) => {
+  return (req, res, next) => {
     if (!req.user) {
-      return httpError(req, res, new Error(responseMessage.ERROR.UNAUTHORIZED), 401);
+      return httpError(req, res, new Error('Unauthorized'), 401);
     }
 
-    const projectId = req.params.projectId || req.body.projectId;
-
-    if (!projectId) {
-      return httpError(req, res, new Error('Project ID is required'), 400);
+    if (!roles.includes(req.user.systemRole)) {
+      return httpError(req, res, new Error('Forbidden'), 403);
     }
 
-    const membership = await prisma.projectMember.findFirst({
-      where: {
-        projectId,
-        userId: req.user.id,
-      },
-    });
-
-    if (!membership && req.user.role !== 'MANAGER') {
-      return httpError(req, res, new Error('You are not a member of this project'), 403);
-    }
-
-    req.projectMembership = membership;
     return next();
   };
 };
 
-export const requireTaskAccess = (prisma) => {
-  return async (req, res, next) => {
-    if (!req.user) {
-      return httpError(req, res, new Error(responseMessage.ERROR.UNAUTHORIZED), 401);
-    }
-
-    const taskId = req.params.taskId || req.params.id;
-
-    if (!taskId) {
-      return httpError(req, res, new Error('Task ID is required'), 400);
-    }
-
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      include: {
-        project: {
-          include: {
-            members: true,
-          },
-        },
-      },
-    });
-
-    if (!task) {
-      return httpError(req, res, new Error('Task not found'), 404);
-    }
-
-    const isCreator = task.createdById === req.user.id;
-    const isAssignee = task.assignedToId === req.user.id;
-    const isProjectMember = task.project.members.some((m) => m.userId === req.user.id);
-    const isManager = req.user.role === 'MANAGER';
-
-    if (!isCreator && !isAssignee && !isProjectMember && !isManager) {
-      return httpError(req, res, new Error('You do not have access to this task'), 403);
-    }
-
-    req.task = task;
-    return next();
-  };
-};
+export const requireSuperAdmin = requireSystemRole('SUPER_ADMIN');
