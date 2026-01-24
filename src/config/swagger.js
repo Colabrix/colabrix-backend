@@ -11,6 +11,7 @@ const docsPath = path.join(__dirname, '../../docs');
 const healthSpec = YAML.load(path.join(docsPath, 'health-openapi.yaml'));
 const authSpec = YAML.load(path.join(docsPath, 'auth-openapi.yaml'));
 const organizationSpec = YAML.load(path.join(docsPath, 'organization-openapi.yaml'));
+const subscriptionSpec = YAML.load(path.join(docsPath, 'subscription-openapi.yaml'));
 
 const swaggerOptions = {
   explorer: true,
@@ -26,7 +27,11 @@ const swaggerOptions = {
       },
       {
         url: '/api-docs/organization.json',
-        name: 'Organization API (13 endpoints)',
+        name: 'Organization API (14 endpoints)',
+      },
+      {
+        url: '/api-docs/subscription.json',
+        name: 'Subscription API (11 endpoints)',
       },
     ],
   },
@@ -84,10 +89,11 @@ const combinedDocs = {
     description: `
 Complete API documentation for the Colabrix platform.
 
-**30 endpoints across 3 modules:**
+**42 endpoints across 4 modules:**
 - Health (7 endpoints)
 - Authentication (10 endpoints)
-- Organization (13 endpoints)
+- Organization (14 endpoints)
+- Subscription (11 endpoints)
 
 **Use the dropdown above to navigate between modules.**
     `.trim(),
@@ -101,6 +107,7 @@ Complete API documentation for the Colabrix platform.
     ...healthSpec.tags,
     ...authSpec.tags,
     ...organizationSpec.tags,
+    ...subscriptionSpec.tags,
   ],
   components: {
     securitySchemes: authSpec.components.securitySchemes,
@@ -108,20 +115,24 @@ Complete API documentation for the Colabrix platform.
       ...(healthSpec.components?.schemas || {}),
       ...(authSpec.components?.schemas || {}),
       ...(organizationSpec.components?.schemas || {}),
+      ...(subscriptionSpec.components?.schemas || {}),
     },
     parameters: {
       ...(organizationSpec.components?.parameters || {}),
+      ...(subscriptionSpec.components?.parameters || {}),
     },
     responses: {
       ...(healthSpec.components?.responses || {}),
       ...(authSpec.components?.responses || {}),
       ...(organizationSpec.components?.responses || {}),
+      ...(subscriptionSpec.components?.responses || {}),
     },
   },
   paths: {
     ...healthSpec.paths,
     ...authSpec.paths,
     ...organizationSpec.paths,
+    ...subscriptionSpec.paths,
   },
 };
 
@@ -132,4 +143,5 @@ export {
   healthSpec,
   authSpec,
   organizationSpec,
+  subscriptionSpec,
 };

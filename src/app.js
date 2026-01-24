@@ -15,6 +15,7 @@ import {
   healthSpec,
   authSpec,
   organizationSpec,
+  subscriptionSpec,
 } from './config/swagger.js';
 import { errorHandler, httpResponse, logger, notFoundHandler } from './shared/index.js';
 
@@ -41,6 +42,7 @@ const corsOptions = {
     const allowedOrigins = config.cors.origins || [
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:5000',
     ];
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -78,7 +80,13 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '10mb' }));
+app.use((req, res, next) => {
+  if (req.originalUrl === '/v1/subscriptions/webhook') {
+    next();
+  } else {
+    express.json({ limit: '10mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use((req, res, next) => {
@@ -110,6 +118,8 @@ app.get('/', (req, res) => {
     },
   });
 });
+
+app.get('/favicon.ico', (_, res) => res.status(204).end());
 
 const apiDocsAuth = (req, res, next) => {
   if (config.env === 'development') {
@@ -147,6 +157,7 @@ app.get('/api-docs', apiDocsAuth, swaggerUi.setup(combinedDocs, swaggerOptions))
 app.get('/api-docs/health.json', apiDocsAuth, (_, res) => res.json(healthSpec));
 app.get('/api-docs/auth.json', apiDocsAuth, (_, res) => res.json(authSpec));
 app.get('/api-docs/organization.json', apiDocsAuth, (_, res) => res.json(organizationSpec));
+app.get('/api-docs/subscription.json', apiDocsAuth, (_, res) => res.json(subscriptionSpec));
 
 logger.info(`API Documentation: http://localhost:${config.port}/api-docs`);
 

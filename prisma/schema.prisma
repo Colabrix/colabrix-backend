@@ -19,6 +19,14 @@ enum PlanType {
   ENTERPRISE
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  TRIALING
+}
+
 model User {
   id                 String      @id @default(cuid())
   email              String      @unique
@@ -45,20 +53,44 @@ model User {
 }
 
 model Plan {
-  id            String         @id @default(cuid())
-  name          String
-  type          PlanType       @unique
-  price         Float
-  interval      String
-  description   String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          String         @id @default(cuid())
+  name        String
+  type        PlanType       @unique
+  price       Float
+  interval    String
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   features      PlanFeature[]
   organizations Organization[]
+  subscriptions Subscription[]
 
   @@index([type])
+  @@index([isActive])
   @@map("plans")
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  organizationId     String             @unique
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  stripePaymentId    String?
+  canceledAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@index([organizationId])
+  @@index([planId])
+  @@index([status])
+  @@map("subscriptions")
 }
 
 model Feature {
@@ -95,22 +127,22 @@ model PlanFeature {
 }
 
 model Organization {
-  id             String    @id @default(cuid())
-  name           String
-  imageUrl       String?
-  ownerId        String
-  planId         String
-  subscriptionId String?
-  trialEndsAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  name        String
+  imageUrl    String?
+  ownerId     String
+  planId      String
+  trialEndsAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  owner   User                 @relation("OrgOwner", fields: [ownerId], references: [id])
-  plan    Plan                 @relation(fields: [planId], references: [id])
-  members OrganizationMember[]
-  roles   Role[]
-  invites OrganizationInvite[]
-  usage   FeatureUsage[]
+  owner        User                 @relation("OrgOwner", fields: [ownerId], references: [id])
+  plan         Plan                 @relation(fields: [planId], references: [id])
+  subscription Subscription?
+  members      OrganizationMember[]
+  roles        Role[]
+  invites      OrganizationInvite[]
+  usage        FeatureUsage[]
 
   @@index([name])
   @@index([createdAt])
