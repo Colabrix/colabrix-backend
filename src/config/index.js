@@ -10,9 +10,6 @@ const config = {
     url: process.env.DATABASE_URL,
     readUrl: process.env.DATABASE_READ_URL,
   },
-  mongodb: {
-    url: process.env.MONGODB_URL,
-  },
   redis: {
     clusterUrls: process.env.REDIS_CLUSTER_URLS?.split(',') || [],
     password: process.env.REDIS_PASSWORD,
@@ -49,35 +46,10 @@ const config = {
     secretKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   },
-  aws: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION || 'us-east-1',
-    s3Bucket: process.env.AWS_S3_BUCKET,
-  },
 
   resend: {
     apiKey: process.env.RESEND_API_KEY,
     fromEmail: process.env.RESEND_FROM_EMAIL || 'noreply@colabrix.app',
-  },
-
-  smtp: {
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT, 10) || 587,
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-
-  twilio: {
-    accountSid: process.env.TWILIO_ACCOUNT_SID,
-    authToken: process.env.TWILIO_AUTH_TOKEN,
-    apiKey: process.env.TWILIO_API_KEY,
-    apiSecret: process.env.TWILIO_API_SECRET,
-  },
-
-  encryption: {
-    key: process.env.RESPONSE_ENCRYPTION_KEY || 'colabrix-default-32-char-key-12345',
-    algorithm: 'aes-256-cbc',
   },
 };
 
@@ -87,8 +59,5 @@ for (const envVar of requiredEnvVars) {
     throw new Error(`Missing required environment variable: ${envVar}`);
   }
 }
-
-// eslint-disable-next-line no-console
-console.log(`Configuration loaded for environment: ${config.env}`);
 
 export default config;

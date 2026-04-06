@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum SystemRole {
@@ -308,15 +307,3 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model HealthCheck {
-  id        String   @id @default(cuid())
-  status    String
-  timestamp DateTime @default(now())
-  uptime    Float?
-  memory    Json?
-  version   String?
-
-  @@index([timestamp])
-  @@index([status])
-  @@map("health_checks")
-}

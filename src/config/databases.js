@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import mongoose from 'mongoose';
+import { PrismaPg } from '@prisma/adapter-pg';
 import Redis from 'ioredis';
 import config from './index.js';
 import { logger } from '../shared/index.js';
@@ -10,39 +10,22 @@ let redisCluster;
 
 function initializePrisma() {
   if (!prisma) {
+    const writeAdapter = new PrismaPg({ connectionString: config.database.url });
     prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: config.database.url,
-        },
-      },
+      adapter: writeAdapter,
       log: config.env === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
     });
   }
 
   if (!readPrisma && config.database.readUrl) {
+    const readAdapter = new PrismaPg({ connectionString: config.database.readUrl });
     readPrisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: config.database.readUrl,
-        },
-      },
+      adapter: readAdapter,
       log: config.env === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
     });
   }
 
   return { prisma, readPrisma: readPrisma || prisma };
-}
-
-async function initializeMongo() {
-  if (mongoose.connection.readyState === 0 && config.mongodb.url) {
-    await mongoose.connect(config.mongodb.url, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-  }
-  return mongoose;
 }
 
 function initializeRedis() {
@@ -66,7 +49,7 @@ function initializeRedis() {
 
 async function connectDatabases() {
   try {
-    logger.info('🔌 Connecting to databases...');
+    logger.info('Connecting to databases...');
 
     const { prisma: writeDB, readPrisma: readDB } = initializePrisma();
     await writeDB.$connect();
@@ -77,11 +60,6 @@ async function connectDatabases() {
       logger.success('PostgreSQL (read) connected');
     }
 
-    if (config.mongodb.url) {
-      await initializeMongo();
-      logger.success('MongoDB connected');
-    }
-
     if (config.redis.clusterUrls.length > 0) {
       const redis = initializeRedis();
       await redis.ping();
@@ -90,7 +68,7 @@ async function connectDatabases() {
 
     logger.success('All databases connected successfully');
   } catch (error) {
-    logger.error(`❌ Database connection failed: ${error.message}`);
+    logger.error(`Database connection failed: ${error.message}`);
     throw error;
   }
 }
@@ -111,10 +89,6 @@ function getReadDB() {
   return readPrisma;
 }
 
-function getMongoose() {
-  return mongoose;
-}
-
 function getRedisClient() {
   if (!redisCluster) {
     return initializeRedis();
@@ -130,7 +104,6 @@ async function checkDatabaseHealth() {
       writeLatency: null,
       readLatency: null,
     },
-    mongodb: { connected: false, latency: null },
     redis: { connected: false, latency: null },
     errors: [],
   };
@@ -147,17 +120,6 @@ async function checkDatabaseHealth() {
     health.postgresql.readLatency = Date.now() - readStart;
   } catch (error) {
     health.errors.push(`PostgreSQL: ${error.message}`);
-  }
-
-  try {
-    if (config.mongodb.url) {
-      const mongoStart = Date.now();
-      await mongoose.connection.db.admin().ping();
-      health.mongodb.connected = true;
-      health.mongodb.latency = Date.now() - mongoStart;
-    }
-  } catch (error) {
-    health.errors.push(`MongoDB: ${error.message}`);
   }
 
   try {
@@ -180,24 +142,20 @@ async function disconnectDatabases() {
 
     if (prisma) {
       await prisma.$disconnect();
-      logger.info('✅ PostgreSQL (write) disconnected');
+      logger.info('PostgreSQL (write) disconnected');
     }
     if (readPrisma) {
       await readPrisma.$disconnect();
-      logger.info('✅ PostgreSQL (read) disconnected');
-    }
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-      logger.info('✅ MongoDB disconnected');
+      logger.info('PostgreSQL (read) disconnected');
     }
     if (redisCluster) {
       redisCluster.disconnect();
-      logger.info('✅ Redis disconnected');
+      logger.info('Redis disconnected');
     }
 
-    logger.info('🎉 All databases disconnected successfully');
+    logger.info('All databases disconnected successfully');
   } catch (error) {
-    logger.error('❌ Error disconnecting from databases:', error);
+    logger.error('Error disconnecting from databases:', error);
   }
 }
 
@@ -206,7 +164,6 @@ export {
   disconnectDatabases,
   getWriteDB,
   getReadDB,
-  getMongoose,
   getRedisClient,
   checkDatabaseHealth,
 };
