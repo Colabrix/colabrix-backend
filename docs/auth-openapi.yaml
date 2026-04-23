@@ -1,0 +1,779 @@
+openapi: 3.0.0
+info:
+  title: Colabrix Authentication API
+  version: 1.0.0
+  description: |
+    Comprehensive authentication API for the Colabrix platform.
+
+    **Features:**
+    - Email/password authentication with JWT tokens
+    - Email verification flow
+    - Password reset with secure tokens
+    - Multi-device session management
+    - Refresh token rotation
+    - Change password functionality
+
+    **Security:**
+    - Passwords hashed with bcrypt (12 rounds)
+    - JWT access tokens (15 min expiry)
+    - JWT refresh tokens (7 days expiry)
+    - Redis-backed session management
+
+  contact:
+    name: Colabrix Support
+    email: support@colabrix.com
+
+servers:
+  - url: http://localhost:5000/v1
+    description: Local development server
+  - url: https://staging-api.colabrix.com/v1
+    description: Staging server
+  - url: https://api.colabrix.com/v1
+    description: Production server
+
+tags:
+  - name: Health
+    description: Service health endpoints
+  - name: Registration
+    description: User registration
+  - name: Authentication
+    description: Login and token management
+  - name: Email Verification
+    description: Email verification with secure tokens
+  - name: Password Reset
+    description: Password recovery flow
+  - name: Profile
+    description: User profile management
+  - name: Session Management
+    description: Multi-device session control
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token obtained from `/auth/login` endpoint.
+
+        Include in Authorization header as: `Bearer <token>`
+
+        Tokens expire after 15 minutes. Use refresh token to obtain new access token.
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: "clh1234567890abcdefghijk"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        phone:
+          type: string
+          nullable: true
+          example: "+919876543210"
+        isEmailVerified:
+          type: boolean
+          example: false
+        systemRole:
+          type: string
+          enum: [SUPER_ADMIN, USER]
+          example: "USER"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            organizations:
+              type: array
+              description: Organizations the user belongs to
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: cuid
+                  role:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                        example: "Admin"
+                  organization:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                        example: "Acme Corporation"
+                      imageUrl:
+                        type: string
+                        nullable: true
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token (15 min expiry)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: JWT refresh token (7 days expiry)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        sessionId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Login successful"
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            sessionId:
+              type: string
+            user:
+              $ref: '#/components/schemas/User'
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Validation failed"
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+  responses:
+    ValidationError:
+      description: Validation error - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Validation failed"
+              code: "VALIDATION_ERROR"
+              details:
+                - field: "email"
+                  message: "Invalid email format"
+
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Authentication required"
+              code: "UNAUTHORIZED"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Internal server error"
+              code: "INTERNAL_ERROR"
+
+paths:
+  /auth/health:
+    get:
+      tags:
+        - Health
+      summary: Auth module health check
+      description: |
+        Check auth module health status.
+
+        Returns module name, uptime, and version information.
+      operationId: authHealthCheck
+      responses:
+        '200':
+          description: Auth module is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Auth module is healthy"
+                data:
+                  module: "auth"
+                  timestamp: "2024-01-15T10:30:00Z"
+                  uptime: 123456.789
+                  version: "1.0.0"
+
+  /auth/register:
+    post:
+      tags:
+        - Registration
+      summary: Register new user
+      description: |
+        Create a new user account with email and password.
+
+        **Password requirements:**
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one number
+
+        **Flow:**
+        1. Validate input
+        2. Check email uniqueness
+        3. Hash password with bcrypt
+        4. Create user record
+        5. Send verification email
+        6. Return user ID
+
+        **Note:** User must verify email before full access is granted.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: User's email address (must be unique)
+                  example: "user@example.com"
+                password:
+                  type: string
+                  minLength: 8
+                  description: "Password (min 8 chars, must include uppercase, lowercase, number)"
+                  example: "SecurePass123"
+                phone:
+                  type: string
+                  pattern: '^\+[1-9]\d{1,14}$'
+                  description: Phone number in E.164 format (optional)
+                  example: "+919876543210"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Registration successful. Please verify your email."
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                        format: cuid
+                        example: "clh1234567890abcdefghijk"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: User with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "User with this email already exists"
+                  code: "USER_EXISTS"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/verify-email:
+    post:
+      tags:
+        - Email Verification
+      summary: Verify email address
+      description: |
+        Verify user email using the token sent via email.
+
+        **Token validity:** 24 hours
+
+        **After verification:**
+        - User's `isEmailVerified` flag set to true
+        - Full access to platform features granted
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Verification token from email
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Email verified successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired verification token"
+                  code: "INVALID_TOKEN"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: |
+        Authenticate user with email and password.
+
+        **Returns:**
+        - JWT access token (15 min expiry)
+        - JWT refresh token (7 days expiry)
+        - Session ID for session management
+        - User profile data
+
+        **Session management:**
+        - Each login creates a new session
+        - Sessions stored in Redis for fast validation
+        - Multiple devices can be logged in simultaneously
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  example: "SecurePass123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                success: true
+                message: "Login successful"
+                data:
+                  accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  sessionId: "550e8400-e29b-41d4-a716-446655440000"
+                  user:
+                    id: "clh1234567890abcdefghijk"
+                    email: "user@example.com"
+                    isEmailVerified: true
+                    systemRole: "USER"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid email or password"
+                  code: "INVALID_CREDENTIALS"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Password Reset
+      summary: Request password reset
+      description: |
+        Send password reset link to user's email.
+
+        **Security:**
+        - Always returns success (prevents email enumeration)
+        - Reset token valid for 1 hour
+        - Previous reset tokens invalidated
+
+        **Flow:**
+        1. User submits email
+        2. If email exists, reset email sent
+        3. User clicks link in email
+        4. User submits new password with token
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+      responses:
+        '200':
+          description: Password reset email sent (if account exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "If an account exists with this email, a password reset link has been sent"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Password Reset
+      summary: Reset password
+      description: |
+        Reset user password using the reset token from email.
+
+        **Token validity:** 1 hour
+
+        **Password requirements:**
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one number
+
+        **After reset:**
+        - All existing sessions are invalidated
+        - User must login again
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  description: Reset token from email
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                password:
+                  type: string
+                  minLength: 8
+                  description: New password
+                  example: "NewSecurePass123"
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Password reset successful. Please login with your new password."
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid or expired reset token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Invalid or expired reset token"
+                  code: "INVALID_TOKEN"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/me:
+    get:
+      tags:
+        - Profile
+      summary: Get current user profile
+      description: |
+        Retrieve authenticated user's profile with organization memberships and roles.
+
+        **Returns:**
+        - User profile data
+        - List of organizations user belongs to
+        - Role in each organization
+        - Organization details
+
+        **Use case:**
+        - Initial app load to get user context
+        - Check organization memberships
+        - Determine available permissions
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+              example:
+                success: true
+                message: "Profile retrieved"
+                data:
+                  id: "clh1234567890abcdefghijk"
+                  email: "user@example.com"
+                  isEmailVerified: true
+                  systemRole: "USER"
+                  organizations:
+                    - id: "clh9876543210membership"
+                      role:
+                        id: "clhrole123"
+                        name: "Admin"
+                      organization:
+                        id: "clhorg123"
+                        name: "Acme Corporation"
+                        imageUrl: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Session Management
+      summary: Logout user
+      description: |
+        Invalidate current session and logout user.
+
+        **Actions performed:**
+        - Current session removed from Redis
+        - Access token invalidated
+        - Refresh token invalidated
+
+        User must login again to get new tokens.
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Logout successful"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/logout-all:
+    post:
+      tags:
+        - Session Management
+      summary: Logout from all devices
+      description: |
+        Invalidate all user sessions across all devices.
+
+        **Actions performed:**
+        - All sessions removed from Redis
+        - All access tokens invalidated
+        - All refresh tokens invalidated
+
+        **Use case:**
+        - Security concern (compromised account)
+        - User wants to sign out everywhere
+        - Password change (recommended)
+      operationId: logoutAllDevices
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out from all devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Logged out from all devices"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/change-password:
+    post:
+      tags:
+        - Session Management
+      summary: Change password
+      description: |
+        Change current user's password.
+
+        **Requirements:**
+        - Must be authenticated
+        - Must provide current password
+        - New password must meet requirements
+
+        **Password requirements:**
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one number
+
+        **Recommendation:** Call `/auth/logout-all` after password change.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  description: Current password for verification
+                  example: "OldPass123"
+                newPassword:
+                  type: string
+                  minLength: 8
+                  description: New password
+                  example: "NewSecurePass456"
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Password changed successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid current password or unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Current password is incorrect"
+                  code: "INVALID_PASSWORD"
+        '500':
+          $ref: '#/components/responses/InternalError'

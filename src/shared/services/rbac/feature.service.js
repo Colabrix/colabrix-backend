@@ -1,9 +1,9 @@
-import { CacheManager } from '../../config/redis.js';
-import { getPrisma } from '../../config/databases.js';
-import logger from '../utils/logger.js';
+import { CacheManager } from '../../../config/redis.js';
+import { getWriteDB } from '../../../config/databases.js';
+import logger from '../../utils/logger.js';
 
 const cache = new CacheManager();
-const prisma = getPrisma();
+const prisma = getWriteDB();
 
 const FEATURE_CACHE_TTL = 600;
 const USAGE_TTL = 30 * 24 * 60 * 60;

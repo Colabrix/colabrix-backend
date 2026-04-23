@@ -1,8 +1,8 @@
-import { getPrisma } from '../../../config/databases.js';
+import { getWriteDB } from '../../../config/databases.js';
 import logger from '../../../shared/utils/logger.js';
 import { invalidateRolePermissionCache } from '../../../shared/services/rbac/permission.service.js';
 
-const prisma = getPrisma();
+const prisma = getWriteDB();
 
 export const createRole = async (organizationId, name, description, permissionIds) => {
   const role = await prisma.$transaction(async (tx) => {

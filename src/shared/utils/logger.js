@@ -1,5 +1,4 @@
 import winston from 'winston';
-import 'winston-mongodb';
 import config from '../../config/index.js';
 
 const levels = {
@@ -38,20 +37,6 @@ const transports = [
   }),
 ];
 
-// Add MongoDB transport for application logs
-if (config.mongodb.url) {
-  transports.push(
-    new winston.transports.MongoDB({
-      level: 'info',
-      db: config.mongodb.url,
-      metaKey: 'meta',
-      expireAfterSeconds: 3600 * 24 * 30, // 30 days
-      collection: 'application-logs',
-      format: productionFormat,
-    })
-  );
-}
-
 if (config.env === 'production') {
   transports.push(
     new winston.transports.File({
@@ -80,7 +65,6 @@ logger.stream = {
   },
 };
 
-// Add custom methods for application-specific logging
 logger.startup = (message) => logger.info(`🚀 ${message}`);
 logger.success = (message) => logger.info(`✅ ${message}`);
 logger.security = (message, details) => logger.warn(`🔒 ${message} ${details || ''}`);

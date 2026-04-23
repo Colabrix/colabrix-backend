@@ -1,0 +1,1006 @@
+openapi: 3.0.0
+info:
+  title: Colabrix Organization API
+  version: 1.0.0
+  description: |
+    Organization management API for the Colabrix platform.
+
+    **Features:**
+    - Multi-tenant organization management
+    - Role-Based Access Control (RBAC)
+    - Custom role creation with granular permissions
+    - Member management with role assignment
+    - Subscription-based feature gating
+
+    **Subscription Plans:**
+    - FREE: Basic features, limited roles
+    - STANDARD: Custom roles, more members
+    - PREMIUM: Advanced RBAC, priority support
+    - ENTERPRISE: Unlimited everything, SSO
+
+    **RBAC System:**
+    - System roles: Admin, Manager, Member, Viewer
+    - Custom roles: Create your own with specific permissions
+    - Permissions: resource:action format (e.g., members:create)
+
+  contact:
+    name: Colabrix Support
+    email: support@colabrix.com
+
+servers:
+  - url: http://localhost:5000/v1
+    description: Local development server
+  - url: https://staging-api.colabrix.com/v1
+    description: Staging server
+  - url: https://api.colabrix.com/v1
+    description: Production server
+
+tags:
+  - name: Health
+    description: Service health endpoints
+  - name: Organizations
+    description: Organization CRUD operations
+  - name: Members
+    description: Organization member management
+  - name: Roles
+    description: Role and permission management
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from /auth/login endpoint
+
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      description: Organization unique identifier (CUID)
+      schema:
+        type: string
+        format: cuid
+      example: "clh1234567890abcdefghijk"
+
+    RoleId:
+      name: roleId
+      in: path
+      required: true
+      description: Role unique identifier (CUID)
+      schema:
+        type: string
+        format: cuid
+      example: "clh9876543210zyxwvutsrqp"
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: User unique identifier (CUID)
+      schema:
+        type: string
+        format: cuid
+      example: "clhuserid12345678901234"
+
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: "clh1234567890abcdefghijk"
+        name:
+          type: string
+          example: "Acme Corporation"
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://cdn.colabrix.com/orgs/acme-logo.png"
+        ownerId:
+          type: string
+          format: cuid
+          example: "clhowner123456789012345"
+        plan:
+          type: object
+          properties:
+            id:
+              type: string
+            type:
+              type: string
+              enum: [FREE, STANDARD, PREMIUM, ENTERPRISE]
+              example: "PREMIUM"
+            name:
+              type: string
+              example: "Premium Plan"
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        resource:
+          type: string
+          description: Resource name (e.g., organizations, members, roles)
+          example: "members"
+        action:
+          type: string
+          description: Action type (create, read, update, delete)
+          example: "create"
+        description:
+          type: string
+          nullable: true
+          example: "Can add new members to the organization"
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+        organizationId:
+          type: string
+          format: cuid
+        name:
+          type: string
+          example: "Project Manager"
+        description:
+          type: string
+          nullable: true
+          example: "Can manage projects and assign tasks"
+        isSystemRole:
+          type: boolean
+          description: System roles cannot be deleted or have permissions modified
+          example: false
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Validation failed"
+              code: "VALIDATION_ERROR"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Authentication required"
+              code: "UNAUTHORIZED"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Permission denied"
+              code: "FORBIDDEN"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Resource not found"
+              code: "NOT_FOUND"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /organizations/health:
+    get:
+      tags:
+        - Health
+      summary: Organization module health check
+      description: |
+        Check organization module health status.
+
+        Returns module name, uptime, and version information.
+      operationId: organizationHealthCheck
+      responses:
+        '200':
+          description: Organization module is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Organization module is healthy"
+                data:
+                  module: "organization"
+                  timestamp: "2024-01-15T10:30:00Z"
+                  uptime: 123456.789
+                  version: "1.0.0"
+
+  /organizations:
+    post:
+      tags:
+        - Organizations
+      summary: Create organization
+      description: |
+        Create a new organization with automatic role generation.
+
+        **What happens:**
+        1. Organization record created
+        2. Default system roles created (Admin, Manager, Member, Viewer)
+        3. Creator assigned as owner with Admin role
+        4. Subscription plan assigned (default: FREE)
+
+        **Default roles and their permissions:**
+        - **Admin**: All permissions
+        - **Manager**: All except organization delete
+        - **Member**: Basic read/create permissions
+        - **Viewer**: Read-only access
+      operationId: createOrganization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Organization name
+                  example: "Acme Corporation"
+                planType:
+                  type: string
+                  enum: [FREE, STANDARD, PREMIUM, ENTERPRISE]
+                  default: FREE
+                  description: Subscription plan type
+                  example: "PREMIUM"
+      responses:
+        '201':
+          description: Organization created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Organization'
+              example:
+                success: true
+                message: "Organization created successfully"
+                data:
+                  id: "clh1234567890abcdefghijk"
+                  name: "Acme Corporation"
+                  ownerId: "clhowner123456789012345"
+                  plan:
+                    type: "FREE"
+                    name: "Free Plan"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/permissions:
+    get:
+      tags:
+        - Organizations
+      summary: List all permissions
+      description: |
+        Get list of all available permissions in the system.
+
+        **Permission format:** `resource:action`
+
+        **Resources:**
+        - organizations, members, roles, projects, tasks, etc.
+
+        **Actions:**
+        - create, read, update, delete
+
+        Use this list when creating custom roles.
+      operationId: getPermissions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Permissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+              example:
+                success: true
+                message: "Permissions retrieved"
+                data:
+                  - id: "clhperm1"
+                    resource: "organizations"
+                    action: "read"
+                    description: "View organization details"
+                  - id: "clhperm2"
+                    resource: "members"
+                    action: "create"
+                    description: "Add new members"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}:
+    get:
+      tags:
+        - Organizations
+      summary: Get organization details
+      description: |
+        Retrieve organization information.
+
+        **Permission required:** `organizations:read`
+
+        **Returns:**
+        - Organization profile
+        - Current subscription plan
+        - Owner information
+      operationId: getOrganization
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Organization retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Organizations
+      summary: Update organization
+      description: |
+        Update organization details.
+
+        **Permission required:** `organizations:update`
+
+        **Updatable fields:**
+        - name
+        - imageUrl
+      operationId: updateOrganization
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: "Acme Corp (Updated)"
+                imageUrl:
+                  type: string
+                  format: uri
+                  nullable: true
+                  example: "https://cdn.colabrix.com/orgs/new-logo.png"
+      responses:
+        '200':
+          description: Organization updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Organizations
+      summary: Delete organization
+      description: |
+        Delete organization and all associated data.
+
+        **Permission required:** `organizations:delete`
+
+        **Warning:** This action is irreversible!
+
+        **What gets deleted:**
+        - Organization record
+        - All memberships
+        - All custom roles
+        - All associated data
+      operationId: deleteOrganization
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Organization deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Organization deleted successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}/members:
+    post:
+      tags:
+        - Members
+      summary: Add organization member
+      description: |
+        Add a user to the organization with specified role.
+
+        **Permission required:** `members:create`
+
+        **Note:** User must already have an account in the system.
+      operationId: addMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - roleId
+              properties:
+                userId:
+                  type: string
+                  format: cuid
+                  description: User ID to add
+                  example: "clhuserid12345678901234"
+                roleId:
+                  type: string
+                  format: cuid
+                  description: Role to assign
+                  example: "clhroleid1234567890123"
+      responses:
+        '201':
+          description: Member added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Member added successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: User is already a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "User is already a member of this organization"
+                  code: "MEMBER_EXISTS"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}/members/{userId}/role:
+    patch:
+      tags:
+        - Members
+      summary: Update member role
+      description: |
+        Update organization member's role.
+
+        **Permission required:** `members:update`
+
+        **Note:** Cannot change owner's role.
+      operationId: updateMemberRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roleId
+              properties:
+                roleId:
+                  type: string
+                  format: cuid
+                  description: New role to assign
+                  example: "clhnewroleid123456789"
+      responses:
+        '200':
+          description: Member role updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Member role updated successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}/members/{userId}:
+    delete:
+      tags:
+        - Members
+      summary: Remove organization member
+      description: |
+        Remove a member from the organization.
+
+        **Permission required:** `members:delete`
+
+        **Note:** Cannot remove the organization owner.
+      operationId: removeMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Member removed successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}/roles:
+    get:
+      tags:
+        - Roles
+      summary: List organization roles
+      description: |
+        Get all roles for an organization.
+
+        **Permission required:** `roles:read`
+
+        **Returns:**
+        - System roles (Admin, Manager, Member, Viewer)
+        - Custom roles created for this organization
+        - Permissions for each role
+      operationId: getRoles
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Roles
+      summary: Create custom role
+      description: |
+        Create a new custom role in the organization.
+
+        **Permission required:** `roles:create`
+
+        **Plan restrictions:**
+        - FREE: Max 1 custom role
+        - STANDARD: Max 5 custom roles
+        - PREMIUM: Max 20 custom roles
+        - ENTERPRISE: Unlimited
+
+        Custom roles can have any combination of permissions.
+      operationId: createRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: Role name
+                  example: "Project Manager"
+                description:
+                  type: string
+                  maxLength: 200
+                  description: Role description
+                  example: "Can manage projects and assign tasks"
+                permissionIds:
+                  type: array
+                  items:
+                    type: string
+                    format: cuid
+                  description: List of permission IDs to assign
+                  example: ["clhperm1", "clhperm2", "clhperm3"]
+      responses:
+        '201':
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}/roles/{roleId}:
+    patch:
+      tags:
+        - Roles
+      summary: Update role
+      description: |
+        Update role name and description.
+
+        **Permission required:** `roles:update`
+
+        **Note:** System roles cannot be modified.
+      operationId: updateRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/RoleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  example: "Senior Project Manager"
+                description:
+                  type: string
+                  maxLength: 200
+                  example: "Senior level project management capabilities"
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Validation error or cannot update system role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Roles
+      summary: Delete role
+      description: |
+        Delete a custom role.
+
+        **Permission required:** `roles:delete`
+
+        **Restrictions:**
+        - System roles cannot be deleted
+        - Roles with assigned members cannot be deleted
+
+        Reassign members to a different role before deleting.
+      operationId: deleteRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Role deleted successfully"
+        '400':
+          description: Cannot delete system role or role has members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Cannot delete system role"
+                  code: "SYSTEM_ROLE"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /organizations/{organizationId}/roles/{roleId}/permissions:
+    put:
+      tags:
+        - Roles
+      summary: Update role permissions
+      description: |
+        Update the permissions assigned to a role.
+
+        **Permission required:** `roles:update`
+
+        **Note:** System role permissions cannot be modified.
+
+        This replaces all existing permissions with the new list.
+      operationId: updateRolePermissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/RoleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissionIds
+              properties:
+                permissionIds:
+                  type: array
+                  items:
+                    type: string
+                    format: cuid
+                  description: Complete list of permission IDs for this role
+                  example: ["clhperm1", "clhperm2", "clhperm3", "clhperm4"]
+      responses:
+        '200':
+          description: Role permissions updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Role permissions updated successfully"
+        '400':
+          description: Validation error or cannot update system role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Cannot modify system role permissions"
+                  code: "SYSTEM_ROLE"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'

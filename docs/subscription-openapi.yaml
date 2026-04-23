@@ -1,0 +1,922 @@
+openapi: 3.0.0
+info:
+  title: Colabrix Subscription API
+  version: 1.0.0
+  description: |
+    Subscription and billing management API for the Colabrix platform.
+
+    **Features:**
+    - Subscription plan management
+    - Stripe payment integration
+    - Checkout session creation
+    - Subscription lifecycle management
+    - Webhook handling for payment events
+    - Plan administration (SUPER_ADMIN only)
+
+    **Subscription Plans:**
+    - FREE: Basic features, no payment required
+    - STANDARD: Enhanced features with monthly/yearly billing
+    - PREMIUM: Advanced features with priority support
+    - ENTERPRISE: Full features with custom pricing
+
+    **Payment Flow:**
+    1. Create checkout session
+    2. User completes payment on Stripe
+    3. Webhook confirms payment
+    4. Subscription activated
+    5. Organization plan upgraded
+
+  contact:
+    name: Colabrix Support
+    email: support@colabrix.com
+
+servers:
+  - url: http://localhost:5000/v1
+    description: Local development server
+  - url: https://staging-api.colabrix.com/v1
+    description: Staging server
+  - url: https://api.colabrix.com/v1
+    description: Production server
+
+tags:
+  - name: Health
+    description: Service health endpoints
+  - name: Plans
+    description: Subscription plan management
+  - name: Subscriptions
+    description: Organization subscription management
+  - name: Admin
+    description: Administrative endpoints (SUPER_ADMIN only)
+  - name: Webhooks
+    description: Stripe webhook handlers
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from /auth/login endpoint
+
+  schemas:
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: "clhplan123456789012345"
+        name:
+          type: string
+          example: "Premium Plan"
+        type:
+          type: string
+          enum: [FREE, STANDARD, PREMIUM, ENTERPRISE]
+          example: "PREMIUM"
+        price:
+          type: number
+          format: float
+          description: Price in USD
+          example: 29.99
+        interval:
+          type: string
+          enum: [month, year]
+          example: "month"
+        description:
+          type: string
+          nullable: true
+          example: "Advanced features for growing teams"
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        features:
+          type: array
+          description: Features included in this plan
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              featureId:
+                type: string
+              isEnabled:
+                type: boolean
+              limit:
+                type: integer
+                nullable: true
+              feature:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  name:
+                    type: string
+                  description:
+                    type: string
+                    nullable: true
+                  category:
+                    type: string
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: cuid
+          example: "clhsub123456789012345"
+        organizationId:
+          type: string
+          format: cuid
+          example: "clhorg123456789012345"
+        planId:
+          type: string
+          format: cuid
+          example: "clhplan123456789012345"
+        status:
+          type: string
+          enum: [ACTIVE, PAST_DUE, CANCELED, INCOMPLETE, TRIALING]
+          example: "ACTIVE"
+        currentPeriodStart:
+          type: string
+          format: date-time
+          example: "2024-01-15T00:00:00Z"
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          example: "2024-02-15T00:00:00Z"
+        stripePaymentId:
+          type: string
+          nullable: true
+          example: "cs_test_a1b2c3d4e5f6g7h8i9j0"
+        canceledAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        plan:
+          $ref: '#/components/schemas/Plan'
+
+    CheckoutSession:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: Stripe checkout session ID
+          example: "cs_test_a1b2c3d4e5f6g7h8i9j0"
+        url:
+          type: string
+          format: uri
+          description: Stripe checkout URL to redirect user
+          example: "https://checkout.stripe.com/pay/cs_test_..."
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Validation failed"
+              code: "VALIDATION_ERROR"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Authentication required"
+              code: "UNAUTHORIZED"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Permission denied. SUPER_ADMIN role required"
+              code: "FORBIDDEN"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              message: "Resource not found"
+              code: "NOT_FOUND"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /subscriptions/health:
+    get:
+      tags:
+        - Health
+      summary: Subscription module health check
+      description: |
+        Check subscription module health status.
+
+        Returns module name, uptime, and version information.
+      operationId: subscriptionHealthCheck
+      responses:
+        '200':
+          description: Subscription module is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Subscription module is healthy"
+                data:
+                  module: "subscription"
+                  timestamp: "2024-01-15T10:30:00Z"
+                  uptime: 123456.789
+                  version: "1.0.0"
+
+  /subscriptions/plans:
+    get:
+      tags:
+        - Plans
+      summary: List all subscription plans
+      description: |
+        Get all available subscription plans.
+
+        **Query parameters:**
+        - `includeInactive`: Include inactive plans (default: false)
+
+        **Public endpoint** - No authentication required.
+
+        **Returns:**
+        - All active plans by default
+        - Plan features and pricing
+        - Plan type and interval
+      operationId: getPlans
+      parameters:
+        - name: includeInactive
+          in: query
+          description: Include inactive plans in the response
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plan'
+              example:
+                success: true
+                message: "Plans retrieved successfully"
+                data:
+                  - id: "clhplan1"
+                    name: "Free Plan"
+                    type: "FREE"
+                    price: 0
+                    interval: "month"
+                    isActive: true
+                  - id: "clhplan2"
+                    name: "Premium Plan"
+                    type: "PREMIUM"
+                    price: 29.99
+                    interval: "month"
+                    isActive: true
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/plans/{planId}:
+    get:
+      tags:
+        - Plans
+      summary: Get plan details
+      description: |
+        Retrieve detailed information about a specific plan.
+
+        **Public endpoint** - No authentication required.
+
+        **Returns:**
+        - Plan details
+        - Included features
+        - Pricing information
+      operationId: getPlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Plan unique identifier
+          schema:
+            type: string
+            format: cuid
+          example: "clhplan123456789012345"
+      responses:
+        '200':
+          description: Plan retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Plan'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/admin/plans:
+    post:
+      tags:
+        - Admin
+      summary: Create subscription plan
+      description: |
+        Create a new subscription plan.
+
+        **Permission required:** SUPER_ADMIN system role
+
+        **Plan types:**
+        - FREE: No payment required
+        - STANDARD: Standard tier
+        - PREMIUM: Premium tier
+        - ENTERPRISE: Enterprise tier
+
+        **Intervals:**
+        - month: Monthly billing
+        - year: Yearly billing
+      operationId: createPlan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+                - price
+                - interval
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: "Premium Plan"
+                type:
+                  type: string
+                  enum: [FREE, STANDARD, PREMIUM, ENTERPRISE]
+                  example: "PREMIUM"
+                price:
+                  type: number
+                  format: float
+                  minimum: 0
+                  description: Price in USD
+                  example: 29.99
+                interval:
+                  type: string
+                  enum: [month, year]
+                  example: "month"
+                description:
+                  type: string
+                  example: "Advanced features for growing teams"
+      responses:
+        '201':
+          description: Plan created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Plan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/admin/plans/{planId}:
+    patch:
+      tags:
+        - Admin
+      summary: Update subscription plan
+      description: |
+        Update an existing subscription plan.
+
+        **Permission required:** SUPER_ADMIN system role
+
+        **Updatable fields:**
+        - name
+        - price
+        - interval
+        - description
+        - isActive (to enable/disable plan)
+
+        **Note:** Cannot change plan type after creation.
+      operationId: updatePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Plan unique identifier
+          schema:
+            type: string
+            format: cuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: "Premium Plan (Updated)"
+                price:
+                  type: number
+                  format: float
+                  minimum: 0
+                  example: 39.99
+                interval:
+                  type: string
+                  enum: [month, year]
+                  example: "year"
+                description:
+                  type: string
+                  example: "Updated description"
+                isActive:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Plan updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Plan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete subscription plan
+      description: |
+        Delete a subscription plan.
+
+        **Permission required:** SUPER_ADMIN system role
+
+        **Warning:** This action is irreversible!
+
+        **Note:** Cannot delete plans with active subscriptions.
+      operationId: deletePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Plan unique identifier
+          schema:
+            type: string
+            format: cuid
+      responses:
+        '200':
+          description: Plan deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Plan deleted successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete plan with active subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Cannot delete plan with active subscriptions"
+                  code: "PLAN_IN_USE"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/organizations/{organizationId}:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get organization subscription
+      description: |
+        Retrieve subscription details for an organization.
+
+        **Permission required:** `organizations:read`
+
+        **Returns:**
+        - Current subscription status
+        - Plan details
+        - Billing period information
+        - Payment information
+      operationId: getSubscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          description: Organization unique identifier
+          schema:
+            type: string
+            format: cuid
+          example: "clhorg123456789012345"
+      responses:
+        '200':
+          description: Subscription retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No subscription found for this organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "No subscription found"
+                  code: "NOT_FOUND"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/checkout:
+    post:
+      tags:
+        - Subscriptions
+      summary: Create checkout session
+      description: |
+        Create a Stripe checkout session for subscription payment.
+
+        **Authentication required**
+
+        **Flow:**
+        1. User selects a plan
+        2. Create checkout session
+        3. Redirect user to Stripe checkout URL
+        4. User completes payment
+        5. Webhook confirms payment
+        6. Subscription activated
+
+        **Returns:**
+        - Stripe checkout session ID
+        - Checkout URL to redirect user
+      operationId: createCheckout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - organizationId
+                - planId
+              properties:
+                organizationId:
+                  type: string
+                  format: cuid
+                  description: Organization to subscribe
+                  example: "clhorg123456789012345"
+                planId:
+                  type: string
+                  format: cuid
+                  description: Plan to subscribe to
+                  example: "clhplan123456789012345"
+      responses:
+        '200':
+          description: Checkout session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/CheckoutSession'
+              example:
+                success: true
+                message: "Checkout session created successfully"
+                data:
+                  sessionId: "cs_test_a1b2c3d4e5f6g7h8i9j0"
+                  url: "https://checkout.stripe.com/pay/cs_test_..."
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Organization or plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/verify:
+    get:
+      tags:
+        - Subscriptions
+      summary: Verify payment
+      description: |
+        Verify payment completion and activate subscription.
+
+        **Authentication required**
+
+        **Query parameters:**
+        - `sessionId`: Stripe checkout session ID (required)
+
+        **Use case:**
+        - Called after user returns from Stripe checkout
+        - Confirms payment was successful
+        - Activates subscription
+
+        **Note:** Webhook also handles this automatically.
+      operationId: verifyPayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: query
+          required: true
+          description: Stripe checkout session ID
+          schema:
+            type: string
+          example: "cs_test_a1b2c3d4e5f6g7h8i9j0"
+      responses:
+        '200':
+          description: Payment verified and subscription activated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Session ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "Session ID is required"
+                  code: "VALIDATION_ERROR"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Session not found or payment not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/cancel:
+    post:
+      tags:
+        - Subscriptions
+      summary: Cancel subscription
+      description: |
+        Cancel an organization's subscription.
+
+        **Permission required:** `organizations:update`
+
+        **Actions performed:**
+        - Subscription marked as canceled
+        - Access continues until end of billing period
+        - No further charges
+
+        **Note:** Organization will be downgraded to FREE plan after current period ends.
+      operationId: cancelSubscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - organizationId
+              properties:
+                organizationId:
+                  type: string
+                  format: cuid
+                  description: Organization ID to cancel subscription
+                  example: "clhorg123456789012345"
+      responses:
+        '200':
+          description: Subscription canceled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: "Subscription canceled successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Organization or subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/webhook:
+    post:
+      tags:
+        - Webhooks
+      summary: Stripe webhook handler
+      description: |
+        Handle Stripe webhook events.
+
+        **Public endpoint** - No authentication (verified by Stripe signature)
+
+        **Security:**
+        - Webhook signature verification required
+        - Invalid signatures rejected
+
+        **Supported events:**
+        - `checkout.session.completed`: Payment successful, activate subscription
+
+        **Headers required:**
+        - `stripe-signature`: Stripe webhook signature
+
+        **Note:** This endpoint expects raw request body for signature verification.
+      operationId: stripeWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Stripe webhook event payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid webhook signature
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Webhook Error: Invalid signature"
+        '500':
+          description: Error processing webhook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

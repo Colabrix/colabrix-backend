@@ -1,6 +1,7 @@
 node_modules
 .env
 logs/
-docs/
+documents/
+sessions/
 .DS_Store
 docker-compose.dev.yml

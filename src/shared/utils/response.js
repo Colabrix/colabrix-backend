@@ -57,8 +57,7 @@ export const httpResponse = (req, res, responseStatusCode, responseMessage, data
   res.status(responseStatusCode).json(response);
 };
 
-export const errorObject = (err, req, errorStatusCode = 500) => {
-  const errorData = null;
+export const errorObject = (err, req, errorStatusCode = 500, message) => {
   const trace = err instanceof Error ? { error: err.stack } : null;
 
   const errorObj = {
@@ -70,10 +69,11 @@ export const errorObject = (err, req, errorStatusCode = 500) => {
       url: req.originalUrl,
     },
     message:
-      err instanceof Error
+      message
+      || (err instanceof Error
         ? err.message || responseMessage.ERROR.SOMETHING_WENT_WRONG
-        : responseMessage.ERROR.SOMETHING_WENT_WRONG,
-    data: errorData,
+        : responseMessage.ERROR.SOMETHING_WENT_WRONG),
+    data: null,
     trace,
   };
 
@@ -84,8 +84,8 @@ export const errorObject = (err, req, errorStatusCode = 500) => {
   return errorObj;
 };
 
-export const httpError = (req, res, err, errorStatusCode = 500) => {
-  const errorObj = errorObject(err, req, errorStatusCode);
+export const httpError = (req, res, err, errorStatusCode = 500, message) => {
+  const errorObj = errorObject(err, req, errorStatusCode, message);
 
   logger.error('CONTROLLER_ERROR', {
     meta: errorObj,
