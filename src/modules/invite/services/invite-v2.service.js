@@ -82,3 +82,4 @@ export const generateInviteLink = async ({
     expiresAt: invite.expiresAt,
   };
 };
+

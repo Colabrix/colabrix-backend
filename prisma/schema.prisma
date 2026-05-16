@@ -39,11 +39,23 @@ model User {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
+  displayName       String?
+  avatarUrl         String?
+  bio               String?
+  location          String?
+  profileCompleted  Boolean   @default(false)
+  profileCompletedAt DateTime?
+
+  authProvider      String    @default("EMAIL") // EMAIL | GOOGLE
+  googleId          String?   @unique
+  
+  onboardingChecklists OnboardingChecklist[]
   ownedOrganizations Organization[]                @relation("OrgOwner")
   organizations      OrganizationMember[]
   emailTokens        EmailVerificationToken[]
   passwordResets     PasswordResetToken[]
   refreshTokens      RefreshToken[]
+
 
   @@index([createdAt])
   @@index([isEmailVerified])
@@ -58,6 +70,7 @@ model Plan {
   price       Float
   interval    String
   description String?
+  maxMembers     Int?     // NULL for unlimited
   isActive    Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -223,15 +236,25 @@ model OrganizationInvite {
   organizationId String
   email          String?
   roleId         String?
+  role           Role     @relation(fields: [roleId], references: [id])
+  inviterId      String
+  inviter        OrganizationMember @relation(fields: [inviterId, organizationId], references: [userId, organizationId])
   token          String    @unique
   expiresAt      DateTime
+  usedBy         String? 
   isUsed         Boolean   @default(false)
   usedAt         DateTime?
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  projectIds     String[]
+  isMultiUse     Boolean  @default(false)
+  useCount       Int      @default(0)
+  isRevoked      Boolean  @default(false)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+  @@index([token])
   @@index([email])
   @@index([expiresAt])
   @@index([isUsed])
@@ -306,4 +329,26 @@ model RefreshToken {
   @@index([userId, expiresAt])
   @@map("refresh_tokens")
 }
-
+model OnboardingChecklist {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  steps          Json     
+  completedCount Int      @default(0)
+  
+  isCompleted    Boolean  @default(false)
+  completedAt    DateTime?
+  
+  isDismissed    Boolean  @default(false)
+  dismissedAt    DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
