@@ -1,4 +1,3 @@
-import { randomBytes, createHmac } from 'crypto';
 import { getWriteDB } from '../../../config/databases.js';
 import { sendEmail } from '../../../config/email.js';
 import { logger } from '../../../shared/index.js';
@@ -88,7 +87,7 @@ export const generateInviteLink = async ({
     expiresAt: expiresAt.getTime(),
   };
 
-  //const token = encodeInviteToken(tokenPayload);
+  // const token = encodeInviteToken(tokenPayload);
   const inviteUrl = `${config.frontendUrl}/invite/${token}`;
 
   await prisma.organizationInvite.update({
