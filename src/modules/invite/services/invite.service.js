@@ -294,3 +294,73 @@ export const acceptInvite = async (token, userId) => {
     role,
   };
 };
+
+export const revokeInvite = async (inviteId, revokerId) => {
+  const invite = await prisma.organizationInvite.findUnique({
+    where: { id: inviteId },
+    include: {
+      organization: true,
+    },
+  });
+
+  if (!invite) {
+    throw new Error('Invite not found');
+  }
+
+  const revoker = await prisma.organizationMember.findUnique({
+    where: {
+      userId_organizationId: {
+        userId: revokerId,
+        organizationId: invite.organizationId,
+      },
+    },
+    include: {
+      role: true,
+    },
+  });
+
+  const isOwner = invite.organization.ownerId === revokerId;
+  const isAdmin = revoker?.role.name === 'Admin';
+
+  if (!isOwner && !isAdmin) {
+    throw new Error('Only Org Owners and Admins can revoke invites');
+  }
+
+  await prisma.organizationInvite.update({
+    where: { id: inviteId },
+    data: { isRevoked: true },
+  });
+
+  logger.info('Invite revoked', { inviteId, revokerId });
+};
+
+export const getOrganizationInvites = async(organizationId)=>{
+
+   const invites = await prisma.organizationInvite.findMany({
+    where: {
+      organizationId,
+      isRevoked: false,
+    },
+    include: {
+      inviter: {
+        select: {
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+      role: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return invites;
+}

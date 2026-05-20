@@ -64,13 +64,7 @@ export const validateInvite = asyncHandler(async (req, res) => {
       requestId: req.requestId,
     });
 
-    return httpResponse(
-      req,
-      res,
-      200,
-      responseMessage.custom('Invite token is valid'),
-      inviteData
-    );
+    return httpResponse(req, res, 200, responseMessage.custom('Invite token is valid'), inviteData);
   } catch (error) {
     logger.error('Validate invite failed', {
       error: error.message,
@@ -90,12 +84,11 @@ export const validateInvite = asyncHandler(async (req, res) => {
 export const acceptInvite = asyncHandler(async (req, res) => {
   try {
     const { token } = req.params;
-    const userId = req.user.id;
 
-    const result = await inviteService.acceptInvite(token, userId);
+    const result = await inviteService.acceptInvite(token, req.user.id);
 
     logger.info('Invite accepted', {
-      userId,
+      userid: req.user.id,
       organizationId: result.organization.id,
       requestId: req.requestId,
     });
@@ -131,23 +124,16 @@ export const acceptInvite = asyncHandler(async (req, res) => {
 export const revokeInvite = asyncHandler(async (req, res) => {
   try {
     const { inviteId } = req.params;
-    const revokerId = req.user.id;
 
-    await inviteService.revokeInvite(inviteId, revokerId);
+    await inviteService.revokeInvite(inviteId, req.user.id);
 
     logger.info('Invite revoked', {
       inviteId,
-      revokerId,
+      revokerId: req.user.id,
       requestId: req.requestId,
     });
 
-    return httpResponse(
-      req,
-      res,
-      200,
-      responseMessage.custom('Invite revoked successfully'),
-      null
-    );
+    return httpResponse(req, res, 200, responseMessage.custom('Invite revoked successfully'), null);
   } catch (error) {
     logger.error('Revoke invite failed', {
       error: error.message,
