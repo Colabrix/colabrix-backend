@@ -5,7 +5,7 @@ import {
   responseMessage,
   logger,
 } from '../../../shared/index.js';
-import * as inviteService from '../services/invite-v2.service.js';
+import * as inviteService from '../services/invite.service.js';
 
 export const generateInvite = asyncHandler(async (req, res) => {
   try {
