@@ -5,7 +5,7 @@ import { invalidateOrganizationFeatureCache } from '../../../shared/services/rba
 
 const prisma = getWriteDB();
 
-export const createOrganization = async ({ userId, name, planType = 'FREE' }) => {
+export const createOrganization = async ({ userId, name, slug, planType = 'FREE' }) => {
   const plan = await prisma.plan.findUnique({
     where: { type: planType },
   });
@@ -14,10 +14,22 @@ export const createOrganization = async ({ userId, name, planType = 'FREE' }) =>
     throw new Error('Invalid plan type');
   }
 
+  const existingSlug = await prisma.organization.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+
+  if (existingSlug) {
+    const err = new Error('This organization URL is already taken');
+    err.statusCode = 409;
+    throw err;
+  }
+
   const organization = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.create({
       data: {
         name,
+        slug,
         ownerId: userId,
         planId: plan.id,
         trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),

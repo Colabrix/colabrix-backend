@@ -11,6 +11,68 @@ import { verifyEmailTemplate, passwordResetTemplate } from '../utils/email.utils
 const prisma = getWriteDB();
 const sessionManager = new SessionManager();
 
+const createUserSession = async (user) => {
+  const userOrgs = await prisma.organizationMember.findMany({
+    where: { userId: user.id },
+    include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const orgs = userOrgs.map((om) => ({
+    orgId: om.organization.id,
+    orgName: om.organization.name,
+    roleId: om.role.id,
+    roleName: om.role.name,
+    permissions: om.role.permissions.map(
+      (rp) => `${rp.permission.resource}:${rp.permission.action}`
+    ),
+  }));
+
+  const sessionId = await sessionManager.createSession(
+    user.id,
+    {
+      email: user.email,
+      phone: user.phone,
+      isEmailVerified: user.isEmailVerified,
+      systemRole: user.systemRole,
+    },
+    7 * 24 * 60 * 60
+  );
+
+  const { accessToken, refreshToken } = generateTokens({
+    userId: user.id,
+    email: user.email,
+    sessionId,
+    systemRole: user.systemRole,
+    orgs,
+  });
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      token: refreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  return { accessToken, refreshToken, sessionId };
+};
+
 export const registerUser = async ({ email, phone, password }) => {
   const existingUser = await prisma.user.findFirst({
     where: {
@@ -79,7 +141,7 @@ export const verifyEmail = async (token) => {
     throw new Error('Verification token has expired');
   }
 
-  await prisma.$transaction([
+  const [user] = await prisma.$transaction([
     prisma.user.update({
       where: { id: verificationToken.userId },
       data: {
@@ -96,9 +158,21 @@ export const verifyEmail = async (token) => {
     }),
   ]);
 
-  logger.info('Email verified successfully', { userId: verificationToken.userId });
+  const { accessToken, refreshToken, sessionId } = await createUserSession(user);
 
-  return verificationToken.user;
+  logger.info('Email verified successfully', { userId: user.id, sessionId });
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      isEmailVerified: user.isEmailVerified,
+    },
+    accessToken,
+    refreshToken,
+    sessionId,
+  };
 };
 
 export const loginUser = async ({ email, password }) => {
@@ -120,63 +194,7 @@ export const loginUser = async ({ email, password }) => {
     throw new Error('Please verify your email before logging in');
   }
 
-  const userOrgs = await prisma.organizationMember.findMany({
-    where: { userId: user.id },
-    include: {
-      organization: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      role: {
-        include: {
-          permissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const orgs = userOrgs.map((om) => ({
-    orgId: om.organization.id,
-    orgName: om.organization.name,
-    roleId: om.role.id,
-    roleName: om.role.name,
-    permissions: om.role.permissions.map(
-      (rp) => `${rp.permission.resource}:${rp.permission.action}`
-    ),
-  }));
-
-  const sessionId = await sessionManager.createSession(
-    user.id,
-    {
-      email: user.email,
-      phone: user.phone,
-      isEmailVerified: user.isEmailVerified,
-      systemRole: user.systemRole,
-    },
-    7 * 24 * 60 * 60
-  );
-
-  const { accessToken, refreshToken } = generateTokens({
-    userId: user.id,
-    email: user.email,
-    sessionId,
-    systemRole: user.systemRole,
-    orgs,
-  });
-
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
+  const { accessToken, refreshToken, sessionId } = await createUserSession(user);
 
   logger.info('User logged in successfully', { userId: user.id, sessionId });
 
@@ -291,6 +309,26 @@ export const logoutAllDevices = async (userId) => {
   logger.info('User logged out from all devices', { userId });
 };
 
+export const updateProfile = async (userId, { name, avatarUrl }) => {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(name !== undefined && { name }),
+      ...(avatarUrl !== undefined && { avatarUrl }),
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatarUrl: true,
+    },
+  });
+
+  logger.info('Profile updated successfully', { userId });
+
+  return user;
+};
+
 export const getUserProfile = async (userId) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -298,6 +336,8 @@ export const getUserProfile = async (userId) => {
       id: true,
       email: true,
       phone: true,
+      name: true,
+      avatarUrl: true,
       isEmailVerified: true,
       isPhoneVerified: true,
       emailVerifiedAt: true,
@@ -313,6 +353,7 @@ export const getUserProfile = async (userId) => {
             select: {
               id: true,
               name: true,
+              slug: true,
               imageUrl: true,
               createdAt: true,
               updatedAt: true,

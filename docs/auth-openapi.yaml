@@ -122,6 +122,9 @@ components:
                       name:
                         type: string
                         example: "Acme Corporation"
+                      slug:
+                        type: string
+                        example: "acme-corp"
                       imageUrl:
                         type: string
                         nullable: true
@@ -362,7 +365,8 @@ paths:
 
         **After verification:**
         - User's `isEmailVerified` flag set to true
-        - Full access to platform features granted
+        - A session is created and JWT tokens are returned, logging the user in immediately
+        - Frontend proceeds directly to the Post-Auth Decision screen
       operationId: verifyEmail
       requestBody:
         required: true
@@ -383,10 +387,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          phone:
+                            type: string
+                            nullable: true
+                          isEmailVerified:
+                            type: boolean
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      sessionId:
+                        type: string
               example:
                 success: true
                 message: "Email verified successfully"
+                data:
+                  user:
+                    id: "clh1234567890abcdefghijk"
+                    email: "user@example.com"
+                    phone: null
+                    isEmailVerified: true
+                  accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refreshToken: "8f14e45fceea167a5a36dedd4bea2543..."
+                  sessionId: "sess_clh1234567890"
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -637,7 +676,72 @@ paths:
                       organization:
                         id: "clhorg123"
                         name: "Acme Corporation"
+                        slug: "acme-corp"
                         imageUrl: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Profile
+      summary: Update current user profile
+      description: |
+        Update the authenticated user's display name and/or avatar.
+
+        **Use case:**
+        - Profile Setup step during onboarding
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Harsh Gupta"
+                avatarUrl:
+                  type: string
+                  format: uri
+                  example: "https://cdn.colabrix.com/avatars/user123.png"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      avatarUrl:
+                        type: string
+              example:
+                success: true
+                message: "Profile updated successfully"
+                data:
+                  id: "clh1234567890abcdefghijk"
+                  email: "user@example.com"
+                  name: "Harsh Gupta"
+                  avatarUrl: "https://cdn.colabrix.com/avatars/user123.png"
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

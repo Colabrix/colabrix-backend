@@ -9,6 +9,7 @@ import {
   logout,
   logoutAllDevices,
   getMe,
+  updateProfile,
   health,
 } from '../controllers/auth.controller.js';
 import { authenticate, validateRequest } from '../../../shared/index.js';
@@ -19,6 +20,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  updateProfileSchema,
 } from '../validations/auth.schema.js';
 
 const router = express.Router();
@@ -33,6 +35,7 @@ router.post('/reset-password', validateRequest(resetPasswordSchema, 'body'), res
 
 router.use(authenticate);
 router.get('/me', getMe);
+router.patch('/me', validateRequest(updateProfileSchema, 'body'), updateProfile);
 router.post('/logout', logout);
 router.post('/logout-all', logoutAllDevices);
 router.post('/change-password', validateRequest(changePasswordSchema, 'body'), changePassword);

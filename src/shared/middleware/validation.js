@@ -35,7 +35,7 @@ export const validateRequest = (schema, target = 'body') => {
           method: req.method,
           url: req.originalUrl,
         },
-        message: 'Validation Failed.',
+        message: formattedErrors[0]?.message || 'Validation Failed.',
         errors: formattedErrors,
         data: null,
       });

@@ -45,13 +45,11 @@ export const register = asyncHandler(async (req, res) => {
 export const verifyEmail = asyncHandler(async (req, res) => {
   try {
     const { token } = req.body;
-    const user = await authService.verifyEmail(token);
-    logger.info('Email verified', { userId: user.id, requestId: req.requestId });
-    return httpResponse(req, res, 200, responseMessage.custom('Email verified successfully'), {
-      id: user.id,
-      email: user.email,
-      isEmailVerified: true,
-    });
+    const result = await authService.verifyEmail(token);
+    logger.info('Email verified', { userId: result.user.id, requestId: req.requestId });
+    return httpResponse(
+      req, res, 200, responseMessage.custom('Email verified successfully'), result
+    );
   } catch (error) {
     logger.error('Email verification failed', {
       error: error.message,
@@ -178,6 +176,27 @@ export const logoutAllDevices = asyncHandler(async (req, res) => {
     );
   } catch (error) {
     logger.error('Logout all devices failed', {
+      userId: req.user?.id,
+      error: error.message,
+      stack: error.stack,
+      requestId: req.requestId,
+    });
+    return httpError(
+      req, res, error, error.statusCode || 500, responseMessage.custom(error.message)
+    );
+  }
+});
+
+export const updateProfile = asyncHandler(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await authService.updateProfile(userId, req.body);
+    logger.info('Profile updated', { userId, requestId: req.requestId });
+    return httpResponse(
+      req, res, 200, responseMessage.custom('Profile updated successfully'), user
+    );
+  } catch (error) {
+    logger.error('Update profile failed', {
       userId: req.user?.id,
       error: error.message,
       stack: error.stack,

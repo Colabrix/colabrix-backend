@@ -95,6 +95,9 @@ components:
         name:
           type: string
           example: "Acme Corporation"
+        slug:
+          type: string
+          example: "acme-corp"
         imageUrl:
           type: string
           format: uri
@@ -317,6 +320,7 @@ paths:
               type: object
               required:
                 - name
+                - slug
               properties:
                 name:
                   type: string
@@ -324,6 +328,13 @@ paths:
                   maxLength: 100
                   description: Organization name
                   example: "Acme Corporation"
+                slug:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+                  description: URL-safe organization identifier, e.g. colabrix.in/org/:slug
+                  example: "acme-corp"
                 planType:
                   type: string
                   enum: [FREE, STANDARD, PREMIUM, ENTERPRISE]
@@ -350,6 +361,7 @@ paths:
                 data:
                   id: "clh1234567890abcdefghijk"
                   name: "Acme Corporation"
+                  slug: "acme-corp"
                   ownerId: "clhowner123456789012345"
                   plan:
                     type: "FREE"
@@ -358,6 +370,16 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Slug already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  message: "This organization URL is already taken"
         '500':
           $ref: '#/components/responses/InternalError'
 

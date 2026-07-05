@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 export const createOrganizationSchema = z.object({
   name: z.string().min(1, 'Organization name is required').max(100),
+  slug: z
+    .string()
+    .min(3, 'Slug must be at least 3 characters')
+    .max(50)
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Slug can only contain lowercase letters, numbers, and hyphens'),
   planType: z.enum(['FREE', 'STANDARD', 'PREMIUM', 'ENTERPRISE']).optional(),
 });
 

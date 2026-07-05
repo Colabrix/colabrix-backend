@@ -34,6 +34,11 @@ export const resetPasswordSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
+export const updateProfileSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100).optional(),
+  avatarUrl: z.string().url('Avatar must be a valid URL').optional(),
+});
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z

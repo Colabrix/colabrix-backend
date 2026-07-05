@@ -7,6 +7,15 @@ import {
 } from '../../../shared/index.js';
 import * as inviteService from '../services/invite.service.js';
 
+export const health = asyncHandler(async (req, res) => {
+  return httpResponse(req, res, 200, responseMessage.custom('Invite module is healthy'), {
+    module: 'invite',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || '1.0.0',
+  });
+});
+
 export const generateInvite = asyncHandler(async (req, res) => {
   try {
     const inviterId = req.user.id;

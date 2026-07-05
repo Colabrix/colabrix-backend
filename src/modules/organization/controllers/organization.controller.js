@@ -12,12 +12,13 @@ export const health = asyncHandler(async (req, res) => {
 });
 
 export const create = asyncHandler(async (req, res) => {
-  const { name, planType } = req.body;
+  const { name, slug, planType } = req.body;
   const userId = req.user.id;
 
   const organization = await organizationService.createOrganization({
     userId,
     name,
+    slug,
     planType,
   });
 

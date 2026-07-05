@@ -31,6 +31,8 @@ model User {
   email              String      @unique
   phone              String?     @unique
   password           String
+  name               String?
+  avatarUrl          String?
   systemRole         SystemRole  @default(USER)
   isEmailVerified    Boolean     @default(false)
   isPhoneVerified    Boolean     @default(false)
@@ -128,6 +130,7 @@ model PlanFeature {
 model Organization {
   id          String    @id @default(cuid())
   name        String
+  slug        String    @unique
   imageUrl    String?
   ownerId     String
   planId      String
@@ -144,6 +147,7 @@ model Organization {
   usage        FeatureUsage[]
 
   @@index([name])
+  @@index([slug])
   @@index([createdAt])
   @@index([ownerId])
   @@index([planId])
@@ -221,8 +225,11 @@ model OrganizationMember {
 model OrganizationInvite {
   id             String    @id @default(cuid())
   organizationId String
+  inviterId      String?
   email          String?
   roleId         String?
+  projectIds     Json      @default("[]")
+  isMultiUse     Boolean   @default(false)
   token          String    @unique
   expiresAt      DateTime
   isUsed         Boolean   @default(false)
@@ -232,6 +239,7 @@ model OrganizationInvite {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+  @@index([inviterId])
   @@index([email])
   @@index([expiresAt])
   @@index([isUsed])

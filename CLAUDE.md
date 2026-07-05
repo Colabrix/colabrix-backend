@@ -321,10 +321,13 @@ Prisma errors P2002 (unique violation → 409) and P2025 (not found → 404) are
 
 ### Routes — HTTP verbs
 
-**Only `GET` and `POST`.** No PATCH, PUT, or DELETE.
+Use the correct HTTP verb for the operation:
 
 - `GET` — retrieve data
-- `POST` — create, update, or any mutation
+- `POST` — create
+- `PATCH` — partial update
+- `PUT` — replace / full update (e.g. permissions array)
+- `DELETE` — remove
 
 ### Schemas — Zod
 
